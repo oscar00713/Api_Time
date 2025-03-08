@@ -11,16 +11,22 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.2.2
-
-      - name: Copiar al directorio
+        working-directory: /var/www/api.timeboard.live
         run: |
-          sudo rsync -avz --delete \
-          --exclude=.env \
-          --exclude=storage \
-          $GITHUB_WORKSPACE/ /var/www/api.timeboard.live/
-      - name: Aplicando comandos de Laravel
-        run: |
-          cd /var/www/api.timeboard.live/
+          git pull
           php artisan route:cache
           php artisan config:cache
+      # - name: Checkout code
+      #   uses: actions/checkout@v4.2.2
+
+      # - name: Copiar al directorio
+      #   run: |
+      #     sudo rsync -avz --delete \
+      #     --exclude=.env \
+      #     --exclude=storage \
+      #     $GITHUB_WORKSPACE/ /var/www/api.timeboard.live/
+      # - name: Aplicando comandos de Laravel
+      #   run: |
+      #     cd /var/www/api.timeboard.live/
+      #     php artisan route:cache
+      #     php artisan config:cache
