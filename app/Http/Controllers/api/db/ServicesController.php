@@ -35,7 +35,7 @@ class ServicesController extends Controller
                     'active'
                 ]);
 
-            // Aplicar filtro de búsqueda general
+            // Aplicar filtro de búsqueda general de services
             if (!empty($filter['all'])) {
                 $searchTerm = '%' . $filter['all'] . '%';
                 $query->whereAny(
