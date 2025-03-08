@@ -1,0 +1,19 @@
+name: Laravel-Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  Laravel-Deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        working-directory: /var/www/api.timeboard.live
+        run: |
+          git pull
+          php artisan migrate
+          php artisan route:cache
+          php artisan config:cache
