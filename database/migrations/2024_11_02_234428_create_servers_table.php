@@ -11,17 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Schema::connection('sqlite')->create('servers', function (Blueprint $table) {
-        //     $table->id();
-        //     $table->string('db_connection')->default('pgsql');
-        //     $table->string('name')->nullable();
-        //     $table->string('db_host')->nullable();
-        //     $table->integer('db_port')->default(5432);
-        //     $table->string('db_username')->nullable();
-        //     $table->string('db_password')->nullable();
-        //     $table->boolean('choosable_for_new_clients')->default(false);
-        //     $table->timestamps();
-        // });
+        Schema::connection('sqlite')->create('servers', function (Blueprint $table) {
+            $table->id();
+            $table->string('db_connection')->default('pgsql');
+            $table->string('name')->nullable();
+            $table->string('db_host')->nullable();
+            $table->integer('db_port')->default(5432);
+            $table->string('db_username')->nullable();
+            $table->string('db_password')->nullable();
+            $table->boolean('choosable_for_new_clients')->default(false);
+            $table->timestamps();
+        });
     }
 
     /**
