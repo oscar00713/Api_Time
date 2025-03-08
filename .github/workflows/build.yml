@@ -19,8 +19,8 @@ jobs:
           --exclude=.env \
           --exclude=storage \
           $GITHUB_WORKSPACE/ /var/www/api.timeboard.live/
-      - name: Deploy
-        working-directory: /var/www/api.timeboard.live
+      - name: Aplicando comandos de Laravel
         run: |
+          cd /var/www/api.timeboard.live/
           php artisan route:cache
           php artisan config:cache
