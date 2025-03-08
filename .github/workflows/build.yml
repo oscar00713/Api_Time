@@ -11,6 +11,8 @@ jobs:
 
     steps:
       - name: Checkout code
+        uses: actions/checkout@v4.2.2
+      - name: Deploy
         working-directory: /var/www/api.timeboard.live
         run: |
           git pull
