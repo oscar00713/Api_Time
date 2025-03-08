@@ -10,23 +10,25 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout code
-        working-directory: /var/www/api.timeboard.live
-        run: |
-          git pull
-          php artisan route:cache
-          php artisan config:cache
+      # - name: Checkout code
+      #   working-directory: /var/www/api.timeboard.live
+      #   run: |
+      #     git pull
+      #     php artisan route:cache
+      #     php artisan config:cache
       # - name: Checkout code
       #   uses: actions/checkout@v4.2.2
 
-      # - name: Copiar al directorio
-      #   run: |
-      #     sudo rsync -avz --delete \
-      #     --exclude=.env \
-      #     --exclude=storage \
-      #     $GITHUB_WORKSPACE/ /var/www/api.timeboard.live/
-      # - name: Aplicando comandos de Laravel
-      #   run: |
-      #     cd /var/www/api.timeboard.live/
-      #     php artisan route:cache
-      #     php artisan config:cache
+      - name: Copiar al directorio
+        run: |
+          sudo rsync -avz --delete \
+          --exclude=.env \
+          --exclude=storage \
+          --exclude=vendor/ \
+          --exclude=database/*.sqlite \
+          $GITHUB_WORKSPACE/ /var/www/api.timeboard.live/
+      - name: Aplicando comandos de Laravel
+        working-directory: /var/www/api.timeboard.live
+        run: |
+          php artisan route:cache
+          php artisan config:cache
