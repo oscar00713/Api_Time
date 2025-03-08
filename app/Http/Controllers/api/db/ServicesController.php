@@ -35,6 +35,19 @@ class ServicesController extends Controller
                     'active'
                 ]);
 
+            // Aplicar filtro de búsqueda general
+            if (!empty($filter['all'])) {
+                $searchTerm = '%' . $filter['all'] . '%';
+                $query->whereAny(
+                    [
+                        'name',
+                        'id'
+                    ],
+                    'LIKE',
+                    $searchTerm
+                );
+            }
+
             // Aplicar filtro de estado 'active' si está presente
             if (isset($filter['active'])) {
                 $query->where('active', $filter['active']);

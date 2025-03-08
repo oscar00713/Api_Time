@@ -34,7 +34,29 @@ class ClientController extends Controller
 
             // Aplicar filtros (ejemplo)
             if (!empty($filter['name'])) {
-                $query->where('first_name', 'like', '%' . $filter['name'] . '%');
+                $query->whereAny(
+                    [
+                        'first_name',
+                    ],
+                    'LIKE',
+                    '%' . $filter['all'] . '%'
+                );
+            }
+
+            // Aplicar filtros mejorados
+            if (!empty($filter['all'])) {
+                $searchTerm = '%' . $filter['all'] . '%';
+                $query->whereAny(
+                    [
+                        'first_name',
+                        'last_name',
+                        'email',
+                        'phone',
+                        'national_id'
+                    ],
+                    'LIKE',
+                    $searchTerm
+                );
             }
 
             // Ordenamiento mejorado
