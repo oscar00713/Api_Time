@@ -16,8 +16,8 @@ jobs:
       #     git pull
       #     php artisan route:cache
       #     php artisan config:cache
-      # - name: Checkout code
-      #   uses: actions/checkout@v4.2.2
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
 
       - name: Copiar al directorio
         run: |
