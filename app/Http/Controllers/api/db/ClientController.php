@@ -54,7 +54,7 @@ class ClientController extends Controller
                         'phone',
                         'national_id'
                     ],
-                    'LIKE',
+                    'ilike',
                     $searchTerm
                 );
             }

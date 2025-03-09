@@ -41,9 +41,9 @@ class ServicesController extends Controller
                 $query->whereAny(
                     [
                         'name',
-                        'id'
+
                     ],
-                    'LIKE',
+                    'ilike',
                     $searchTerm
                 );
             }
@@ -307,7 +307,7 @@ class ServicesController extends Controller
                 'appointment_duration_minutes' => $request->has('appointment_duration_minutes') ? $request->input('appointment_duration_minutes') : $service->appointment_duration_minutes,
                 'service_price' => $request->has('service_price') ? $request->input('service_price') : $service->service_price,
             ];
-            
+
             // Tratar el campo 'active' de manera especial para manejar valores booleanos
             if ($request->has('active')) {
                 $serviceData['active'] = $request->input('active') ? true : false;
