@@ -58,7 +58,57 @@ class SpecialistController extends Controller
     {
         $dbConnection = $request->get('db_connection');
         $allRoles = $this->allRoles; // Usar la propiedad de clase
+        $forAppointment = $request->query('for_appointment', false);
 
+        // Si es para crear citas, solo mostrar usuarios activos de la tabla users
+        if ($forAppointment) {
+            $query = DB::connection($dbConnection)
+                ->table('users')
+                ->leftJoin('roles', 'users.id', '=', 'roles.user_id')
+                ->select(
+                    'users.id',
+                    'users.name',
+                    'users.email',
+                    'users.user_type',
+                    'users.active',
+                    'users.phone',
+                    'users.registration',
+                    'users.fixed_salary',
+                    'users.badge_color',
+                    'users.fixed_salary_frecuency',
+                    DB::raw('NULL::BOOLEAN as manage_salary'),
+                    DB::raw('NULL::BOOLEAN as use_room'),
+                    DB::raw('json_agg(roles.*)::json as roles')
+                )
+                ->where('users.active', true) // Solo usuarios activos
+                ->groupBy('users.id');
+
+            // Aplicar filtros de búsqueda si existen
+            if ($request->has('filter') && isset($request->get('filter')['all'])) {
+                $searchTerm = '%' . $request->get('filter')['all'] . '%';
+                $query->whereAny(
+                    [
+                        'users.name',
+                        'users.email',
+                    ],
+                    'ilike',
+                    $searchTerm
+                );
+            }
+
+            // Ordenamiento
+            $query->orderBy('users.name', 'asc');
+
+            // Paginación
+            $specialists = $query->paginate(
+                $request->query('perPage', 15),
+                ['*'],
+                'page',
+                $request->query('page', 1)
+            );
+
+            return response()->json($specialists);
+        }
         // Subquery para users (con filtros aplicados)
         $usersQuery = DB::connection($dbConnection)
             ->table('users')
@@ -118,16 +168,24 @@ class SpecialistController extends Controller
             // Filtro 'all' (búsqueda general)
             if (isset($filters['all'])) {
                 $searchTerm = '%' . $filters['all'] . '%';
-                $usersQuery->where(function ($q) use ($searchTerm) {
-                    $q->where('users.name', 'ilike', $searchTerm)
-                        ->orWhere('users.fixed_salary', 'ilike', $searchTerm)
-                        ->orWhere('users.email', 'ilike', $searchTerm);
-                });
-                $usersTempQuery->where(function ($q) use ($searchTerm) {
-                    $q->where('users_temp.name', 'ilike', $searchTerm)
-                        ->orWhere('users_temp.fixed_salary', 'ilike', $searchTerm)
-                        ->orWhere('users_temp.email', 'ilike', $searchTerm);
-                });
+                $usersQuery->whereAny(
+                    [
+                        'users.name',
+                        'users.fixed_salary',
+                        'users.email',
+                    ],
+                    'ilike',
+                    $searchTerm
+                );
+                $usersTempQuery->whereAny(
+                    [
+                        'users_temp.name',
+                        'users_temp.fixed_salary',
+                        'users_temp.email',
+                    ],
+                    'ilike',
+                    $searchTerm
+                );
             }
         }
 

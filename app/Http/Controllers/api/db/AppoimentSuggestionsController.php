@@ -139,12 +139,14 @@ class AppoimentSuggestionsController extends Controller
     private function getDateRange(array $validated): array
     {
         $now = Carbon::now();
+        
+        // Determinar fecha de inicio según el parámetro dayAndTime
         $start = match ($validated['dayAndTime']) {
             'now' => $now->copy(),
             'about_now' => $now->copy()->addMinutes(30),
             '1hour' => $now->copy(),
             'tomorrow' => $now->copy()->addDay()->startOfDay(),
-            'next_week' => $now->copy()->addWeek()->startOfDay(),
+            'next_week' => $now->copy()->next($now->dayOfWeek)->startOfDay(), // Mismo día de la semana próxima
             'next_month' => $now->copy()->addMonth()->startOfDay(),
             '3months' => $now->copy()->addMonths(3)->startOfDay(),
             '6months' => $now->copy()->addMonths(6)->startOfDay(),
@@ -154,12 +156,13 @@ class AppoimentSuggestionsController extends Controller
             default => Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])
         };
 
+        // Determinar fecha de fin según el parámetro dayAndTime
         $end = match ($validated['dayAndTime']) {
             'now' => $now->copy()->endOfDay(),
             'about_now' => $now->copy()->endOfDay(),
             '1hour' => $now->copy()->addHours(3),
             'tomorrow' => $now->copy()->addDay()->endOfDay(),
-            'next_week' => $now->copy()->addWeek()->endOfDay(),
+            'next_week' => $now->copy()->next($now->dayOfWeek)->endOfDay(), // Mismo día de la semana próxima
             'next_month' => $now->copy()->addMonth()->endOfDay(),
             '3months' => $now->copy()->addMonths(3)->endOfDay(),
             '6months' => $now->copy()->addMonths(6)->endOfDay(),
@@ -198,16 +201,36 @@ class AppoimentSuggestionsController extends Controller
         $slots = [];
         $now = Carbon::now();
         $timeGroups = [];
-    
-        foreach ($period['period'] as $date) {
+        $foundWorkingDay = false;
+        
+        // Crear un período extendido para buscar el próximo día laborable si es necesario
+        $extendedPeriod = CarbonPeriod::create(
+            $period['start'], 
+            $period['start']->copy()->addDays(14) // Extender 2 semanas para buscar días laborables
+        );
+        
+        foreach ($extendedPeriod as $date) {
+            $dayHasSlots = false;
+            
             foreach ($schedules as $schedule) {
                 $dayName = strtolower($date->format('l'));
                 if (!$schedule->$dayName) continue;
-    
+                
+                // Si encontramos un día laborable y no es el primer día del período original,
+                // y estamos en el caso de 'now', 'about_now', o '1hour', ajustamos el período
+                if (!$foundWorkingDay && 
+                    !$date->isSameDay($period['start']) && 
+                    in_array($validated['dayAndTime'], ['now', 'about_now', '1hour'])) {
+                    // Reemplazar el período original con uno que comience en este día laborable
+                    $period['start'] = $date->copy()->startOfDay();
+                    $period['end'] = $date->copy()->endOfDay();
+                    $period['period'] = CarbonPeriod::create($period['start'], $period['end']);
+                    $foundWorkingDay = true;
+                }
+                
                 $workStart = Carbon::parse($schedule->hora_inicio)->setDateFrom($date);
                 $workEnd = Carbon::parse($schedule->hora_fim)->setDateFrom($date);
-                $skipThisDay = false;
-
+                
                 // Solo para el caso "now" - tratamiento especial
                 if ($validated['dayAndTime'] === 'now' && $date->isToday()) {
                     if ($now->gt($workStart)) {
@@ -222,163 +245,71 @@ class AppoimentSuggestionsController extends Controller
                                 'employee_ids' => [$schedule->user_id],
                                 'service_id' => $serviceId
                             ];
-    
-                            // Generar slots intermedios más eficientes solo para "now"
-                            $intermediateStart = $firstSlotStart->copy()->addMinutes(ceil($duration/2));
-                            $intermediateEnd = $intermediateStart->copy()->addMinutes($duration);
-                            
-                            if ($intermediateEnd <= $workEnd && !$this->isSlotOccupied($intermediateStart, $intermediateEnd, $schedule->user_id, $appointments)) {
-                                $timeGroups[$intermediateStart->format('Y-m-d H:i:s')] = [
-                                    'start' => $intermediateStart->toDateTimeString(),
-                                    'end' => $intermediateEnd->toDateTimeString(),
-                                    'employee_ids' => [$schedule->user_id],
-                                    'service_id' => $serviceId
-                                ];
-                            }
-    
-                            // Siguiente slot regular
-                            $nextSlotStart = $firstSlotEnd->copy();
-                            $roundedMinutes = ceil($nextSlotStart->minute / $duration) * $duration;
-                            $workStart = $nextSlotStart->setMinute($roundedMinutes)->setSecond(0);
+                            $dayHasSlots = true;
                         }
                     }
-                } else {
-                    // Para todos los demás casos, alinear los slots a intervalos regulares
-                    if ($validated['dayAndTime'] === 'calendar' && isset($validated['calendar_date']) && isset($validated['calendar_time'])) {
-                        $calendarDateTime = Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time']);
-                        $workStart = max($workStart, $calendarDateTime);
+                }
+                
+                // Generar slots regulares durante el día laboral
+                // Este código es crucial y estaba faltando
+                $slotStart = $workStart->copy();
+                
+                // Si es hoy y estamos en modo "now", comenzar desde la hora actual
+                if ($date->isToday() && $validated['dayAndTime'] === 'now' && $now->gt($slotStart)) {
+                    $slotStart = $now->copy()->ceil($duration);
+                }
+                
+                while ($slotStart->copy()->addMinutes($duration) <= $workEnd) {
+                    $slotEnd = $slotStart->copy()->addMinutes($duration);
+                    
+                    if (!$this->isSlotOccupied($slotStart, $slotEnd, $schedule->user_id, $appointments)) {
+                        $key = $slotStart->format('Y-m-d H:i:s');
+                        
+                        if (!isset($timeGroups[$key])) {
+                            $timeGroups[$key] = [
+                                'start' => $slotStart->toDateTimeString(),
+                                'end' => $slotEnd->toDateTimeString(),
+                                'employee_ids' => [],
+                                'service_id' => $serviceId
+                            ];
+                        }
+                        
+                        $timeGroups[$key]['employee_ids'][] = $schedule->user_id;
+                        $dayHasSlots = true;
                     }
                     
-                    // Alinear el inicio a intervalos regulares
-                    $minutes = $workStart->minute;
-                    $roundedMinutes = ceil($minutes / $duration) * $duration;
-                    if ($roundedMinutes >= 60) {
-                        $workStart->addHour();
-                        $roundedMinutes = 0;
-                    }
-                    $workStart->setMinute($roundedMinutes)->setSecond(0);
+                    $slotStart->addMinutes($duration);
                 }
-    
-                // Resto del switch case para ajustar horarios según dayAndTime
-                switch ($validated['dayAndTime']) {
-                    case 'now':
-                        if ($date->isToday()) {
-                            if ($now->gt($workStart)) {
-                                $workStart = $now->copy()->ceil($duration);
-                            }
-                            // No limitamos a 1 hora para "now"
-                        } else {
-                            $skipThisDay = true;
-                        }
-                        break;
-    
-                    case 'about_now':
-                        if ($date->isToday()) {
-                            $workStart = $now->copy()->addMinutes(30)->ceil($duration);
-                            $workEnd = min($workEnd, $workStart->copy()->addHours(1));
-                        } else {
-                            $skipThisDay = true;
-                        }
-                        break;
-    
-                    case '1hour':
-                        if ($date->isToday()) {
-                            $nextHour = $now->copy()->addHour()->startOfHour();
-                            $workStart = max($workStart, $nextHour);
-                            // Asegurar que no exceda el horario de trabajo
-                            $proposedEnd = min($workStart->copy()->addHour(), $workEnd);
-                            if ($proposedEnd->gt($workEnd) || $workStart->gt($workEnd)) {
-                                $skipThisDay = true;
-                            } else {
-                                $workEnd = $proposedEnd;
-                            }
-                        } else {
-                            $skipThisDay = true;
-                        }
-                        break;
-    
-                    case 'morning':
-                        $workStart = max($workStart, $date->copy()->setTime(6, 0));
-                        $workEnd = min($workEnd, $date->copy()->setTime(12, 0));
-                        break;
-    
-                    case 'afternoon':
-                        $workStart = max($workStart, $date->copy()->setTime(12, 0));
-                        $workEnd = min($workEnd, $date->copy()->setTime(18, 0));
-                        break;
-    
-                    case 'night':
-                        $workStart = max($workStart, $date->copy()->setTime(18, 0));
-                        $workEnd = min($workEnd, $date->copy()->setTime(23, 59));
-                        break;
-    
-                    default:
-                        // Para tomorrow, next_week, next_month, etc.
-                        // Usar los horarios del empleado sin modificación
-                        break;
+                
+                // Si este día tiene slots disponibles, marcarlo
+                if ($dayHasSlots) {
+                    $foundWorkingDay = true;
                 }
-    
-                if ($skipThisDay) continue;
-                if ($workStart->gt($workEnd)) continue;
-    
-                $currentSlot = $workStart->copy();
-    
-                // Generación de slots
-                if ($validated['dayAndTime'] === 'now' && $date->isToday()) {
-                    // Para "now", mantener la generación de slots superpuestos
-                    while ($currentSlot->copy()->addMinutes($duration) <= $workEnd) {
-                        $slotEnd = $currentSlot->copy()->addMinutes($duration);
-                        $timeKey = $currentSlot->format('Y-m-d H:i:s');
-    
-                        if (!isset($timeGroups[$timeKey]) && !$this->isSlotOccupied($currentSlot, $slotEnd, $schedule->user_id, $appointments)) {
-                            $timeGroups[$timeKey] = [
-                                'start' => $currentSlot->toDateTimeString(),
-                                'end' => $slotEnd->toDateTimeString(),
-                                'employee_ids' => [$schedule->user_id],
-                                'service_id' => $serviceId
-                            ];
-    
-                            // Agregar slot intermedio
-                            $intermediateStart = $currentSlot->copy()->addMinutes(ceil($duration/2));
-                            $intermediateEnd = $intermediateStart->copy()->addMinutes($duration);
-                            
-                            if ($intermediateEnd <= $workEnd && !$this->isSlotOccupied($intermediateStart, $intermediateEnd, $schedule->user_id, $appointments)) {
-                                $timeGroups[$intermediateStart->format('Y-m-d H:i:s')] = [
-                                    'start' => $intermediateStart->toDateTimeString(),
-                                    'end' => $intermediateEnd->toDateTimeString(),
-                                    'employee_ids' => [$schedule->user_id],
-                                    'service_id' => $serviceId
-                                ];
-                            }
-                        }
-    
-                        $currentSlot->addMinutes(15); // Intervalos de 15 minutos para "now"
-                    }
-                } else {
-                    // Para los demás casos, generar slots regulares sin superposición
-                    while ($currentSlot->copy()->addMinutes($duration) <= $workEnd) {
-                        $slotEnd = $currentSlot->copy()->addMinutes($duration);
-                        $timeKey = $currentSlot->format('Y-m-d H:i:s');
-    
-                        if (!$this->isSlotOccupied($currentSlot, $slotEnd, $schedule->user_id, $appointments)) {
-                            $timeGroups[$timeKey] = [
-                                'start' => $currentSlot->toDateTimeString(),
-                                'end' => $slotEnd->toDateTimeString(),
-                                'employee_ids' => [$schedule->user_id],
-                                'service_id' => $serviceId
-                            ];
-                        }
-    
-                        $currentSlot->addMinutes($duration); // Intervalos regulares basados en la duración
-                    }
-                }
+            }
+            
+            // Si encontramos slots para este día y estamos buscando el próximo día laborable,
+            // y no estamos en el período original, terminamos la búsqueda extendida
+            if ($dayHasSlots && $foundWorkingDay && !$date->isSameDay($period['start']) && 
+                in_array($validated['dayAndTime'], ['now', 'about_now', '1hour'])) {
+                break;
+            }
+            
+            // Si ya procesamos todos los días del período original y no encontramos slots,
+            // seguimos buscando en el período extendido
+            if ($date->gte($period['end']) && !$foundWorkingDay) {
+                continue;
+            }
+            
+            // Si estamos fuera del período original y no estamos buscando el próximo día laborable,
+            // terminamos
+            if ($date->gt($period['end']) && !in_array($validated['dayAndTime'], ['now', 'about_now', '1hour'])) {
+                break;
             }
         }
 
         // Agregar los slots agrupados
         foreach ($timeGroups as $slot) {
             $slot['employee_ids'] = array_unique($slot['employee_ids']);
-            $slot['service_id'] = $serviceId;
             $slots[] = $slot;
         }
 
