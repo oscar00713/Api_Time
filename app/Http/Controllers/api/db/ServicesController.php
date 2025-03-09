@@ -301,13 +301,17 @@ class ServicesController extends Controller
         try {
             $query->beginTransaction();
 
-            // Actualizar solo los campos proporcionados
-            $serviceData = array_filter([
-                'name' => $request->input('name', $service->name),
-                'appointment_duration_minutes' => $request->input('appointment_duration_minutes', $service->appointment_duration_minutes),
-                'service_price' => $request->input('service_price', $service->service_price),
-                'active' => $request->input('active', $service->active),
-            ]);
+            // Actualizar solo los campos proporcionados - FIX: No usar array_filter aquí
+            $serviceData = [
+                'name' => $request->has('name') ? $request->input('name') : $service->name,
+                'appointment_duration_minutes' => $request->has('appointment_duration_minutes') ? $request->input('appointment_duration_minutes') : $service->appointment_duration_minutes,
+                'service_price' => $request->has('service_price') ? $request->input('service_price') : $service->service_price,
+            ];
+            
+            // Tratar el campo 'active' de manera especial para manejar valores booleanos
+            if ($request->has('active')) {
+                $serviceData['active'] = $request->input('active') ? true : false;
+            }
 
             $query->table('services')->where('id', $id)->update($serviceData);
 
