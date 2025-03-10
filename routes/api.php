@@ -49,6 +49,6 @@ Route::middleware('company')->group(function () {
     Route::get('/statusCompany',  [UserController::class, 'statusCompany']);
     Route::apiResource('/service', ServicesController::class);
     Route::apiResource('/clients', ClientController::class);
-    Route::apiResource('/appoiment', AppoimentCRUDController::class);
+    Route::apiResource('/appointments', AppoimentCRUDController::class);
     Route::post('/appointmentSuggestions', [AppoimentSuggestionsController::class, 'getSuggestions']);
 });

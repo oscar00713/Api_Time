@@ -2,6 +2,19 @@ CREATE TABLE global_options (
     horarios_negocio JSONB
 );
 
+CREATE TABLE block_appointments(
+    id SERIAL PRIMARY KEY,
+    day DATE NOT NULL,
+    time TIME NOT NULL,
+    user_id INTEGER NOT NULL,
+    service_id INTEGER NOT NULL,
+    employee_id INTEGER NOT NULL,
+    CONSTRAINT fk_usersid FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_serviceid FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+    CONSTRAINT fk_employeeid FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
