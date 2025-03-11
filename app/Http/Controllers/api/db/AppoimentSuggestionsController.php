@@ -65,7 +65,10 @@ class AppoimentSuggestionsController extends Controller
 
             $timeSlots = $this->generateTimeSlots($query, $employees, $totalDuration, $validated);
 
-            return response()->json(['suggestions' => $timeSlots]);
+            return response()->json([
+                'suggestions' => $timeSlots,
+                'time_label' => $validated['dayAndTime'] // Añadimos la etiqueta de tiempo a la respuesta
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => $e->getMessage(),
@@ -310,6 +313,7 @@ class AppoimentSuggestionsController extends Controller
         // Agregar los slots agrupados
         foreach ($timeGroups as $slot) {
             $slot['employee_ids'] = array_unique($slot['employee_ids']);
+            $slot['time_label'] = $validated['dayAndTime']; // Añadimos la etiqueta de tiempo a cada slot
             $slots[] = $slot;
         }
 
@@ -339,7 +343,8 @@ class AppoimentSuggestionsController extends Controller
                     'start' => $startTime->toDateTimeString(),
                     'end' => $endTime->toDateTimeString(),
                     'occupied_employee_ids' => [],
-                    'service_id' => $app->service_id
+                    'service_id' => $app->service_id,
+                    'time_label' => 'occupied' // Etiqueta para slots ocupados
                 ];
             }
             

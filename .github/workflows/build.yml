@@ -3,7 +3,7 @@ name: Laravel-Deploy
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   Laravel-Deploy:
