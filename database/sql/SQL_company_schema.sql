@@ -4,13 +4,11 @@ CREATE TABLE global_options (
 
 CREATE TABLE block_appointments(
     id SERIAL PRIMARY KEY,
-    day DATE NOT NULL,
-    time TIME NOT NULL,
+    datetime_start TIMESTAMP NOT NULL,
     user_id INTEGER NOT NULL,
     service_id INTEGER NOT NULL,
     employee_id INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_usersid FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_serviceid FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
     CONSTRAINT fk_employeeid FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
@@ -228,21 +226,24 @@ CREATE TABLE reminders (
 
 CREATE TABLE appointments (
     id INTEGER,
-    date TIMESTAMP NOT NULL PRIMARY KEY,
     client_id INTEGER NOT NULL,
     service_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
-    user_comission_applied INTEGER,
-    user_comission DECIMAL(10, 2),
-    user_comission_percentage NUMERIC(5,2) NOT NULL DEFAULT 0.00,
-    user_comission_fixed DECIMAL(10, 2),
-    status INTEGER NOT NULL,
-    start_date TIMESTAMP NOT NULL,
+    employee_id INTEGER NOT NULL,
+    user_comission_applied VARCHAR(100) DEFAULT 'none',
+    user_comission_total DECIMAL(10, 2) DEFAULT 0.00,
+    user_comission_percentage_applied NUMERIC(5,2)  DEFAULT 0.00,
+    user_comission_percentage_total DECIMAL(10,2)  DEFAULT 0.00,
+    user_comission_fixed_total DECIMAL(10, 2)  DEFAULT 0.00,
+    appointment_price DECIMAL(10, 2) DEFAULT 0.00,
+    paid BOOLEAN DEFAULT false,
+    paid_date TIMESTAMP,
+    status INTEGER DEFAULT 0,
+    start_date TIMESTAMP NOT NULL PRIMARY KEY,
     end_date TIMESTAMP NOT NULL,
     CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id),
     CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-    CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) PARTITION BY RANGE (date);
+    CONSTRAINT fk_users FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+) PARTITION BY RANGE (start_date);
 
 
 CREATE TABLE appointments_default PARTITION OF appointments DEFAULT;
@@ -254,8 +255,8 @@ DECLARE
     start_date TIMESTAMP;
     end_date TIMESTAMP;
 BEGIN
-    partition_name = 'z_appo_' + TO_CHAR(NEW.date, 'YYYY_MM');
-    start_date := DATE_TRUNC('month', NEW.date);
+    partition_name = 'z_appo_' + TO_CHAR(NEW.start_date, 'YYYY_MM');
+    start_date := DATE_TRUNC('month', NEW.start_date);
     end_date := start_date + INTERVAL '1 month';
     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = partition_name) THEN
         EXECUTE format('
