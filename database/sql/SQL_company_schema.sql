@@ -2,17 +2,7 @@ CREATE TABLE global_options (
     horarios_negocio JSONB
 );
 
-CREATE TABLE block_appointments(
-    id SERIAL PRIMARY KEY,
-    datetime_start TIMESTAMP NOT NULL,
-    user_id INTEGER NOT NULL,
-    service_id INTEGER NOT NULL,
-    employee_id INTEGER NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_usersid FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_serviceid FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-    CONSTRAINT fk_employeeid FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
-);
+
 
 
 CREATE TABLE users (
@@ -224,6 +214,17 @@ CREATE TABLE reminders (
     deactivated BOOLEAN DEFAULT false
 );
 
+CREATE TABLE block_appointments(
+    id SERIAL PRIMARY KEY,
+    datetime_start TIMESTAMP NOT NULL,
+    user_id INTEGER NOT NULL,
+    service_id INTEGER NOT NULL,
+    employee_id INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_usersid FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_serviceid FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+    CONSTRAINT fk_employeeid FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+);
 CREATE TABLE appointments (
     id INTEGER,
     client_id INTEGER NOT NULL,

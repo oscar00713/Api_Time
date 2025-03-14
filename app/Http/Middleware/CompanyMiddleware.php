@@ -3,14 +3,15 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use App\Models\Companies;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Config;
 use App\Services\CompanyDatabaseService;
 use App\Services\DynamicDatabaseService;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
-use Illuminate\Support\Facades\Crypt;
 
 class CompanyMiddleware
 {
@@ -88,9 +89,8 @@ class CompanyMiddleware
         } catch (\Exception $e) {
             return response()->json("UNAUTHORIZED17" . $e->getMessage(), 401);
         }
-
         //inyectar el timezone de la tabla companies como request
-        $timezone = DB::connection('dynamic_pgsql')->table('companies')->where('id', $result->company_id)->value('timezone');
+        $timezone = Companies::where('db_name', $request->header('d'))->value('timezone');
         // Use the company timezone if available, otherwise use Laravel's default
         if ($timezone) {
             Config::set('app.timezone', $timezone);
