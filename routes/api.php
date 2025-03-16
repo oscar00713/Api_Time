@@ -17,6 +17,7 @@ use App\Http\Controllers\api\CompanyEmployeesController;
 use App\Http\Controllers\api\db\AppoimentCRUDController;
 use App\Http\Controllers\api\email\InvitacionController;
 use App\Http\Controllers\api\db\AppoimentSuggestionsController;
+use App\Http\Controllers\api\db\BlockAppointmentController;
 use App\Http\Controllers\api\user_option\UserOptionsController;
 use App\Http\Controllers\api\invitacion\UserInvitationController;
 
@@ -51,4 +52,5 @@ Route::middleware('company')->group(function () {
     Route::apiResource('/clients', ClientController::class);
     Route::apiResource('/appointments', AppoimentCRUDController::class);
     Route::post('/appointmentSuggestions', [AppoimentSuggestionsController::class, 'getSuggestions']);
+    Route::post('/blockAppointment', [BlockAppointmentController::class, 'manageBlock']);
 });

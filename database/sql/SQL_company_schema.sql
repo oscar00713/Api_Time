@@ -128,6 +128,15 @@ CREATE TABLE commissions (
     ammount DECIMAL(10, 2) NOT NULL
 );
 
+--crear tabla de company
+create TABLE settings(
+    name VARCHAR(100) NOT NULL,
+    value VARCHAR(100) NOT NULL
+);
+
+--insertar company
+INSERT INTO settings (name, value) VALUES ('timezone', 'America/Chicago');
+
 create TABLE cash_registers (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,

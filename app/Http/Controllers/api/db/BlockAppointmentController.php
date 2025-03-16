@@ -22,7 +22,7 @@ class BlockAppointmentController extends Controller
         try {
             // Validamos la acción
             $validated = $request->validate([
-                'action' => 'required|string|in:block,relase,check',
+                'action' => 'required|string|in:block',
             ]);
 
             // Configuramos la conexión
@@ -53,7 +53,11 @@ class BlockAppointmentController extends Controller
      */
     private function processBlockAction(Request $request, $query)
     {
-        $user = $request->user(); // Corregimos para obtener el usuario autenticado
+        $user = $request->get('user'); // Corregimos para obtener el usuario autenticado
+
+        if (!$user) {
+            return response()->json(['error' => 'No se especificó el usuario'], 400);
+        }
 
         // Validamos los datos específicos para bloquear
         $validated = $request->validate([
@@ -64,7 +68,6 @@ class BlockAppointmentController extends Controller
 
         // Eliminamos todos los bloqueos anteriores del operador actual
         $query->table('block_appointments')
-            ->where('user_id', $user->id)
             ->orWhere('created_at', '<', Carbon::now()->subMinutes(15))
             ->delete();
 
@@ -75,20 +78,29 @@ class BlockAppointmentController extends Controller
             ->where('employee_id', $validated['employee_id'])
             ->first();
 
-        if ($existingBlock) {
+        if ($existingBlock && $existingBlock->user_id !== $user['id']) {
             // Si ya existe un bloqueo por otra persona, devolvemos error
             return response()->json([
-                'message' => 'El turno ya está bloqueado por otro operador'
+                'message' => 'El turno ya está bloqueado por otra persona'
             ], 409);
+        } elseif ($existingBlock && $existingBlock->user_id === $user['id']) {
+            // Si ya existe un bloqueo por la misma persona, lo eliminamos
+            $query->table('block_appointments')
+                ->where('id', $existingBlock->id)
+                ->delete();
+            return response()->json([
+                'message' => 'Turno desbloqueado exitosamente',
+            ]);
         } else {
             // Creamos el nuevo bloqueo
-            $blockId = $query->table('block_appointments')->insertGetId([
-                'datetime_start' => $validated['datetime_start'],
-                'employee_id' => $validated['employee_id'],
-                'service_id' => $validated['service_id'],
-                'user_id' => $user->id,
-                'created_at' => Carbon::now(),
-            ]);
+            $blockId = $query->table('block_appointments')
+                ->insertGetId([
+                    'datetime_start' => $validated['datetime_start'],
+                    'employee_id' => $validated['employee_id'],
+                    'service_id' => $validated['service_id'],
+                    'user_id' => $user['id'],
+                    'created_at' => Carbon::now(),
+                ]);
 
             return response()->json([
                 'message' => 'Turno bloqueado exitosamente',

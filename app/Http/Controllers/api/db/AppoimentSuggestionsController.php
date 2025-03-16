@@ -80,9 +80,6 @@ class AppoimentSuggestionsController extends Controller
 
     // ================ Helper Methods ================ //
 
-
-
-
     private function getTotalDuration($query, array $serviceIds): array
     {
         return $query->table('services')
@@ -111,10 +108,11 @@ class AppoimentSuggestionsController extends Controller
         $period = $this->getDateRange($validated);
         $employeeIds = $employees->pluck('id');
 
+        // Corregimos la consulta para usar start_date en lugar de date
         $existingAppointments = $query->table('appointments')
-            ->whereIn('user_id', $employeeIds)
-            ->whereBetween('date', [$period['start'], $period['end']])
-            ->get(['start_date', 'end_date', 'user_id', 'service_id']);
+            ->whereIn('employee_id', $employeeIds)
+            ->whereBetween('start_date', [$period['start'], $period['end']])  // Cambiado de 'date' a 'start_date'
+            ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']);
 
         // Get blocked appointments
         $blockedAppointments = $query->table('block_appointments')
@@ -213,20 +211,38 @@ class AppoimentSuggestionsController extends Controller
         $now = Carbon::now();
         $timeGroups = [];
         $foundWorkingDay = false;
-
+        $firstSlotAdded = false; // Variable para controlar si ya se añadió el primer slot
+    
+        // Para el caso "now", siempre añadimos un primer slot con la hora actual
+        if ($validated['dayAndTime'] === 'now' && !$firstSlotAdded) {
+            // Primer slot basado en la hora actual
+            $firstSlotStart = $now->copy()->ceil($duration);
+            $firstSlotEnd = $firstSlotStart->copy()->addMinutes($duration);
+    
+            // Añadimos el primer slot sin importar si está dentro del horario laboral
+            $timeGroups[$firstSlotStart->format('Y-m-d H:i:s')] = [
+                'start' => $firstSlotStart->toDateTimeString(),
+                'end' => $firstSlotEnd->toDateTimeString(),
+                'employee_ids' => $schedules->pluck('user_id')->unique()->toArray(),
+                'service_id' => $serviceId,
+                'is_out_of_schedule' => true // Marcamos como fuera de horario por defecto
+            ];
+            $firstSlotAdded = true;
+        }
+    
         // Crear un período extendido para buscar el próximo día laborable si es necesario
         $extendedPeriod = CarbonPeriod::create(
             $period['start'],
             $period['start']->copy()->addDays(14) // Extender 2 semanas para buscar días laborables
         );
-
+    
         foreach ($extendedPeriod as $date) {
             $dayHasSlots = false;
-
+    
             foreach ($schedules as $schedule) {
                 $dayName = strtolower($date->format('l'));
                 if (!$schedule->$dayName) continue;
-
+    
                 // Si encontramos un día laborable y no es el primer día del período original,
                 // y estamos en el caso de 'now', 'about_now', o '1hour', ajustamos el período
                 if (
@@ -240,72 +256,69 @@ class AppoimentSuggestionsController extends Controller
                     $period['period'] = CarbonPeriod::create($period['start'], $period['end']);
                     $foundWorkingDay = true;
                 }
-
+    
                 $workStart = Carbon::parse($schedule->hora_inicio)->setDateFrom($date);
                 $workEnd = Carbon::parse($schedule->hora_fim)->setDateFrom($date);
-
-                // Solo para el caso "now" - tratamiento especial
-                if ($validated['dayAndTime'] === 'now' && $date->isToday()) {
-                    if ($now->gt($workStart)) {
-                        // Primer slot basado en la hora actual
-                        $firstSlotStart = $now->copy()->ceil($duration);
-                        $firstSlotEnd = $firstSlotStart->copy()->addMinutes($duration);
-
-                        // Verificar si está fuera del horario laboral
-                        $isOutOfSchedule = $firstSlotStart->gt($workEnd) || $firstSlotStart->lt($workStart);
-
-                        if ($firstSlotEnd <= $workEnd || $isOutOfSchedule) {
-                            // Añadir flag especial si está fuera del horario
-                            $timeGroups[$firstSlotStart->format('Y-m-d H:i:s')] = [
-                                'start' => $firstSlotStart->toDateTimeString(),
-                                'end' => $firstSlotEnd->toDateTimeString(),
-                                'employee_ids' => [$schedule->user_id],
-                                'service_id' => $serviceId,
-                                'is_out_of_schedule' => $isOutOfSchedule
-                            ];
-                            $dayHasSlots = true;
-                        }
+    
+                // Verificar si el primer slot está dentro del horario laboral
+                if ($validated['dayAndTime'] === 'now' && $firstSlotAdded && $date->isToday()) {
+                    $firstSlotStartTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['start']);
+                    $firstSlotEndTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['end']);
+                    
+                    // Actualizar is_out_of_schedule si el slot está dentro del horario
+                    if ($firstSlotStartTime >= $workStart && $firstSlotEndTime <= $workEnd) {
+                        $timeGroups[array_key_first($timeGroups)]['is_out_of_schedule'] = false;
                     }
                 }
-
+    
                 // Generar slots regulares durante el día laboral
-                // Este código es crucial y estaba faltando
                 $slotStart = $workStart->copy();
-
+    
                 // Si es hoy y estamos en modo "now", comenzar desde la hora actual
                 if ($date->isToday() && $validated['dayAndTime'] === 'now' && $now->gt($slotStart)) {
                     $slotStart = $now->copy()->ceil($duration);
                 }
-
+    
                 while ($slotStart->copy()->addMinutes($duration) <= $workEnd) {
                     $slotEnd = $slotStart->copy()->addMinutes($duration);
-
-                    if (!$this->isSlotOccupied($slotStart, $slotEnd, $schedule->user_id, $appointments)) {
+                    
+                    // Verificar que no se solape con el primer slot especial
+                    $skipThisSlot = false;
+                    if ($validated['dayAndTime'] === 'now' && $firstSlotAdded && $date->isToday()) {
+                        $firstSlotStartTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['start']);
+                        $firstSlotEndTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['end']);
+                        
+                        if ($slotStart->eq($firstSlotStartTime)) {
+                            $skipThisSlot = true;
+                        }
+                    }
+                    
+                    if (!$skipThisSlot && !$this->isSlotOccupied($slotStart, $slotEnd, $schedule->user_id, $appointments)) {
                         $key = $slotStart->format('Y-m-d H:i:s');
-
+                        
                         if (!isset($timeGroups[$key])) {
                             $timeGroups[$key] = [
                                 'start' => $slotStart->toDateTimeString(),
                                 'end' => $slotEnd->toDateTimeString(),
                                 'employee_ids' => [],
                                 'service_id' => $serviceId,
-                                'is_out_of_schedule' => false // Valor por defecto
+                                'is_out_of_schedule' => false
                             ];
                         }
-
+                        
                         $timeGroups[$key]['employee_ids'][] = $schedule->user_id;
                         $dayHasSlots = true;
                     }
-
+                    
                     $slotStart->addMinutes($duration);
                 }
-
+    
                 // Si este día tiene slots disponibles, marcarlo
                 if ($dayHasSlots) {
                     $foundWorkingDay = true;
                 }
             }
-
+    
             // Si encontramos slots para este día y estamos buscando el próximo día laborable,
             // y no estamos en el período original, terminamos la búsqueda extendida
             if (
@@ -314,27 +327,27 @@ class AppoimentSuggestionsController extends Controller
             ) {
                 break;
             }
-
+    
             // Si ya procesamos todos los días del período original y no encontramos slots,
             // seguimos buscando en el período extendido
             if ($date->gte($period['end']) && !$foundWorkingDay) {
                 continue;
             }
-
+    
             // Si estamos fuera del período original y no estamos buscando el próximo día laborable,
             // terminamos
             if ($date->gt($period['end']) && !in_array($validated['dayAndTime'], ['now', 'about_now', '1hour'])) {
                 break;
             }
         }
-
+    
         // Agregar los slots agrupados
         foreach ($timeGroups as $slot) {
             $slot['employee_ids'] = array_unique($slot['employee_ids']);
             $slot['time_label'] = $validated['dayAndTime']; // Añadimos la etiqueta de tiempo a cada slot
             $slots[] = $slot;
         }
-
+    
         return $slots;
     }
 

@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('server_name')->nullable();
             $table->string('db_name')->nullable();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->string('timezone')->default('America/Chicago');
             $table->timestamps();
         });
     }

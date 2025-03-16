@@ -90,12 +90,16 @@ class CompanyMiddleware
             return response()->json("UNAUTHORIZED17" . $e->getMessage(), 401);
         }
         //inyectar el timezone de la tabla companies como request
-        $timezone = Companies::where('db_name', $request->header('d'))->value('timezone');
-        // Use the company timezone if available, otherwise use Laravel's default
+        // $timezone = Companies::where('db_name', $request->header('d'))->value('timezone');
+        // // Use the company timezone if available, otherwise use Laravel's default
+        // if ($timezone) {
+        //     Config::set('app.timezone', $timezone);
+        // }
+
+        $timezone = DB::connection('dynamic_pgsql')->table('settings')->where('name', 'timezone')->value('value');
         if ($timezone) {
             Config::set('app.timezone', $timezone);
         }
-
 
         $request->merge(['db_connection' => $this->dynamicDatabaseService->getConnectionName()]);
 
