@@ -29,7 +29,7 @@ class PostCreatedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Confirm your account:' . $this->pin,
+            subject: 'Confirm your account: ' . $this->pin,
         );
     }
 

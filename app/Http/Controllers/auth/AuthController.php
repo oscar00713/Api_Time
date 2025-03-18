@@ -163,7 +163,7 @@ class AuthController extends Controller
             }
 
             // Si el email ya está verificado, mostrar un error
-            return response()->json(['error' => 'El email ya está registrado y verificado'], 409);
+            return response()->json(['error' => 'repeated'], 409);
         }
 
         // Crear un nuevo usuario

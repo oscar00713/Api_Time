@@ -32,3 +32,7 @@ jobs:
         run: |
           php artisan route:cache
           php artisan config:cache
+      - name: Ajustar permisos
+        run: |
+          sudo chown -R www-data:www-data /var/www/api.timeboard.live/storage /var/www/api.timeboard.live/bootstrap/cache
+          sudo chmod -R 775 /var/www/api.timeboard.live/storage /var/www/api.timeboard.live/bootstrap/cache

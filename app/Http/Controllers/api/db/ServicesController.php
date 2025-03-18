@@ -173,13 +173,10 @@ class ServicesController extends Controller
 
             // Asignar especialistas al servicio (tabla user_services)
             foreach ($request->specialists as $specialist) {
-
-
                 $commissionType = $specialist['commission_type'];
                 $fixed = 0;
                 $percentage = 0;
                 if ($commissionType === 'fixed') {
-
                     $fixed = $specialist['fixed'] ?? 0;
                 } else if ($commissionType === 'percentage') {
                     $percentage = $specialist['percentage'] ?? 0;
@@ -188,15 +185,12 @@ class ServicesController extends Controller
                     $percentage = $specialist['percentage'] ?? 0;
                 }
 
-
-
                 $query->table('user_services')->insert([
                     'service_id' => $serviceId,
                     'user_id' => $specialist['id'], // asumiendo que viene así el payload
                     'commission_type' => $commissionType,
                     'percentage' => $percentage,
                     'fixed' => $fixed,
-                    // Puedes agregar appointment_comission, percentage y fixed según corresponda
                 ]);
             }
 
@@ -222,23 +216,25 @@ class ServicesController extends Controller
                     'saturday'  => $saturday,
                     'sunday'    => $sunday,
                 ]);
+                
+                // Insertar los horarios para este rango (tabla times_range) SOLO UNA VEZ
+                foreach ($range['times'] as $time) {
+                    $query->table('times_range')->insert([
+                        'range_id' => $rangeId,
+                        'hora_inicio' => $time['start'],
+                        'hora_fim' => $time['end'],
+                    ]);
+                }
+                
                 // Asignar especialistas para este rango (tabla user_range)
                 foreach ($range['specialist_in_range'] as $specialistId) {
                     $query->table('user_range')->insert([
                         'range_id' => $rangeId,
                         'user_id' => $specialistId,
                     ]);
-
-                    // Insertar los horarios para este rango (tabla times_range)
-                    foreach ($range['times'] as $time) {
-                        $query->table('times_range')->insert([
-                            'range_id' => $rangeId,
-                            'hora_inicio' => $time['start'],
-                            'hora_fim' => $time['end'],
-                        ]);
-                    }
                 }
             }
+            
             DB::commit();
             return response()->json(['message' => 'Service created successfully'], 201);
         } catch (\Exception $e) {
@@ -273,7 +269,6 @@ class ServicesController extends Controller
 
     public function update(Request $request, string $id)
     {
-        //creame el metodo update
         $dbConnection = $request->get('db_connection');
         $query = DB::connection($dbConnection);
 
@@ -385,21 +380,22 @@ class ServicesController extends Controller
                         'saturday'  => $saturday,
                         'sunday'    => $sunday,
                     ]);
+                    
+                    // Insertar los horarios para este rango (tabla times_range) SOLO UNA VEZ
+                    foreach ($range['times'] as $time) {
+                        $query->table('times_range')->insert([
+                            'range_id' => $rangeId,
+                            'hora_inicio' => $time['start'],
+                            'hora_fim' => $time['end'],
+                        ]);
+                    }
+                    
                     // Asignar especialistas para este rango (tabla user_range)
                     foreach ($range['specialist_in_range'] as $specialistId) {
                         $query->table('user_range')->insert([
                             'range_id' => $rangeId,
                             'user_id' => $specialistId,
                         ]);
-
-                        // Insertar los horarios para este rango (tabla times_range)
-                        foreach ($range['times'] as $time) {
-                            $query->table('times_range')->insert([
-                                'range_id' => $rangeId,
-                                'hora_inicio' => $time['start'],
-                                'hora_fim' => $time['end'],
-                            ]);
-                        }
                     }
                 }
             }

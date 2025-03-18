@@ -343,11 +343,13 @@ class AppoimentSuggestionsController extends Controller
     
         // Agregar los slots agrupados
         foreach ($timeGroups as $slot) {
-            $slot['employee_ids'] = array_unique($slot['employee_ids']);
+            // Convertir employee_ids a un array numérico simple
+            $employeeIds = array_values(array_unique($slot['employee_ids']));
+            $slot['employee_ids'] = $employeeIds;
             $slot['time_label'] = $validated['dayAndTime']; // Añadimos la etiqueta de tiempo a cada slot
             $slots[] = $slot;
         }
-    
+        
         return $slots;
     }
 
@@ -412,14 +414,19 @@ class AppoimentSuggestionsController extends Controller
             $key = $slot['start'] . '_' . $slot['end'];
 
             if (isset($occupiedSlots[$key])) {
-                $slot['occupied_employee_ids'] = $occupiedSlots[$key]['occupied_employee_ids'] ?? [];
-                $slot['blocked_employee_ids'] = $occupiedSlots[$key]['blocked_employee_ids'] ?? [];
+                $slot['occupied_employee_ids'] = array_values(array_unique($occupiedSlots[$key]['occupied_employee_ids'] ?? []));
+                $slot['blocked_employee_ids'] = array_values(array_unique($occupiedSlots[$key]['blocked_employee_ids'] ?? []));
             } else {
                 $slot['occupied_employee_ids'] = [];
                 $slot['blocked_employee_ids'] = []; // Add empty blocked_employee_ids array
             }
+            
+            // Asegurarse de que employee_ids sea un array numérico
+            if (isset($slot['employee_ids'])) {
+                $slot['employee_ids'] = array_values(array_unique($slot['employee_ids']));
+            }
         }
-
+        
         // Agregar slots completamente ocupados si no existen ya
         foreach ($occupiedSlots as $key => $occupiedSlot) {
             $exists = false;
@@ -432,6 +439,8 @@ class AppoimentSuggestionsController extends Controller
 
             if (!$exists) {
                 $occupiedSlot['employee_ids'] = []; // No hay empleados disponibles
+                $occupiedSlot['occupied_employee_ids'] = array_values(array_unique($occupiedSlot['occupied_employee_ids']));
+                $occupiedSlot['blocked_employee_ids'] = array_values(array_unique($occupiedSlot['blocked_employee_ids']));
                 $slots[] = $occupiedSlot;
             }
         }

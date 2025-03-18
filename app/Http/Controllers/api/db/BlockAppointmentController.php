@@ -81,7 +81,7 @@ class BlockAppointmentController extends Controller
         if ($existingBlock && $existingBlock->user_id !== $user['id']) {
             // Si ya existe un bloqueo por otra persona, devolvemos error
             return response()->json([
-                'message' => 'El turno ya está bloqueado por otra persona'
+                'message' => 'error'
             ], 409);
         } elseif ($existingBlock && $existingBlock->user_id === $user['id']) {
             // Si ya existe un bloqueo por la misma persona, lo eliminamos
