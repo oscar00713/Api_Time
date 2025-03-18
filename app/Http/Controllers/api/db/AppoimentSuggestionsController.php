@@ -212,13 +212,13 @@ class AppoimentSuggestionsController extends Controller
         $timeGroups = [];
         $foundWorkingDay = false;
         $firstSlotAdded = false; // Variable para controlar si ya se añadió el primer slot
-    
+
         // Para el caso "now", siempre añadimos un primer slot con la hora actual
         if ($validated['dayAndTime'] === 'now' && !$firstSlotAdded) {
             // Primer slot basado en la hora actual
             $firstSlotStart = $now->copy()->ceil($duration);
             $firstSlotEnd = $firstSlotStart->copy()->addMinutes($duration);
-    
+
             // Añadimos el primer slot sin importar si está dentro del horario laboral
             $timeGroups[$firstSlotStart->format('Y-m-d H:i:s')] = [
                 'start' => $firstSlotStart->toDateTimeString(),
@@ -229,20 +229,20 @@ class AppoimentSuggestionsController extends Controller
             ];
             $firstSlotAdded = true;
         }
-    
+
         // Crear un período extendido para buscar el próximo día laborable si es necesario
         $extendedPeriod = CarbonPeriod::create(
             $period['start'],
             $period['start']->copy()->addDays(14) // Extender 2 semanas para buscar días laborables
         );
-    
+
         foreach ($extendedPeriod as $date) {
             $dayHasSlots = false;
-    
+
             foreach ($schedules as $schedule) {
                 $dayName = strtolower($date->format('l'));
                 if (!$schedule->$dayName) continue;
-    
+
                 // Si encontramos un día laborable y no es el primer día del período original,
                 // y estamos en el caso de 'now', 'about_now', o '1hour', ajustamos el período
                 if (
@@ -256,46 +256,46 @@ class AppoimentSuggestionsController extends Controller
                     $period['period'] = CarbonPeriod::create($period['start'], $period['end']);
                     $foundWorkingDay = true;
                 }
-    
+
                 $workStart = Carbon::parse($schedule->hora_inicio)->setDateFrom($date);
                 $workEnd = Carbon::parse($schedule->hora_fim)->setDateFrom($date);
-    
+
                 // Verificar si el primer slot está dentro del horario laboral
                 if ($validated['dayAndTime'] === 'now' && $firstSlotAdded && $date->isToday()) {
                     $firstSlotStartTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['start']);
                     $firstSlotEndTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['end']);
-                    
+
                     // Actualizar is_out_of_schedule si el slot está dentro del horario
                     if ($firstSlotStartTime >= $workStart && $firstSlotEndTime <= $workEnd) {
                         $timeGroups[array_key_first($timeGroups)]['is_out_of_schedule'] = false;
                     }
                 }
-    
+
                 // Generar slots regulares durante el día laboral
                 $slotStart = $workStart->copy();
-    
+
                 // Si es hoy y estamos en modo "now", comenzar desde la hora actual
                 if ($date->isToday() && $validated['dayAndTime'] === 'now' && $now->gt($slotStart)) {
                     $slotStart = $now->copy()->ceil($duration);
                 }
-    
+
                 while ($slotStart->copy()->addMinutes($duration) <= $workEnd) {
                     $slotEnd = $slotStart->copy()->addMinutes($duration);
-                    
+
                     // Verificar que no se solape con el primer slot especial
                     $skipThisSlot = false;
                     if ($validated['dayAndTime'] === 'now' && $firstSlotAdded && $date->isToday()) {
                         $firstSlotStartTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['start']);
                         $firstSlotEndTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['end']);
-                        
+
                         if ($slotStart->eq($firstSlotStartTime)) {
                             $skipThisSlot = true;
                         }
                     }
-                    
+
                     if (!$skipThisSlot && !$this->isSlotOccupied($slotStart, $slotEnd, $schedule->user_id, $appointments)) {
                         $key = $slotStart->format('Y-m-d H:i:s');
-                        
+
                         if (!isset($timeGroups[$key])) {
                             $timeGroups[$key] = [
                                 'start' => $slotStart->toDateTimeString(),
@@ -305,20 +305,20 @@ class AppoimentSuggestionsController extends Controller
                                 'is_out_of_schedule' => false
                             ];
                         }
-                        
+
                         $timeGroups[$key]['employee_ids'][] = $schedule->user_id;
                         $dayHasSlots = true;
                     }
-                    
+
                     $slotStart->addMinutes($duration);
                 }
-    
+
                 // Si este día tiene slots disponibles, marcarlo
                 if ($dayHasSlots) {
                     $foundWorkingDay = true;
                 }
             }
-    
+
             // Si encontramos slots para este día y estamos buscando el próximo día laborable,
             // y no estamos en el período original, terminamos la búsqueda extendida
             if (
@@ -327,20 +327,20 @@ class AppoimentSuggestionsController extends Controller
             ) {
                 break;
             }
-    
+
             // Si ya procesamos todos los días del período original y no encontramos slots,
             // seguimos buscando en el período extendido
             if ($date->gte($period['end']) && !$foundWorkingDay) {
                 continue;
             }
-    
+
             // Si estamos fuera del período original y no estamos buscando el próximo día laborable,
             // terminamos
             if ($date->gt($period['end']) && !in_array($validated['dayAndTime'], ['now', 'about_now', '1hour'])) {
                 break;
             }
         }
-    
+
         // Agregar los slots agrupados
         foreach ($timeGroups as $slot) {
             // Convertir employee_ids a un array numérico simple
@@ -349,7 +349,7 @@ class AppoimentSuggestionsController extends Controller
             $slot['time_label'] = $validated['dayAndTime']; // Añadimos la etiqueta de tiempo a cada slot
             $slots[] = $slot;
         }
-        
+
         return $slots;
     }
 
@@ -376,7 +376,7 @@ class AppoimentSuggestionsController extends Controller
                     'start' => $startTime->toDateTimeString(),
                     'end' => $endTime->toDateTimeString(),
                     'occupied_employee_ids' => [],
-                    'blocked_employee_ids' => [], 
+                    'blocked_employee_ids' => [],
                     'service_id' => $app->service_id,
                     'time_label' => 'occupied'
                 ];
@@ -385,46 +385,33 @@ class AppoimentSuggestionsController extends Controller
             $occupiedSlots[$key]['occupied_employee_ids'][] = $app->user_id;
         }
 
-        // Crear un mapa de slots bloqueados
-        $blockedSlotMap = [];
-        
-        // Add blocked appointments to the map
+        // Procesar citas bloqueadas
         if ($blockedAppointments) {
+            // Crear un mapa para rastrear qué empleados están bloqueados en qué slots
+            $blockedEmployeeMap = [];
+
             foreach ($blockedAppointments as $block) {
                 $startTime = Carbon::parse($block->datetime_start);
-                // For blocked appointments, we'll use a 30-minute duration by default
-                $endTime = $startTime->copy()->addMinutes(30);
-                
-                // Buscar si hay algún slot disponible que se solape con este bloqueo
+                $endTime = $startTime->copy()->addMinutes(30); // Duración estándar para bloqueos
+
+                // Buscar slots disponibles que se solapen con este bloqueo
                 foreach ($slots as $index => $slot) {
                     $slotStart = Carbon::parse($slot['start']);
                     $slotEnd = Carbon::parse($slot['end']);
-                    
+
                     // Si hay solapamiento entre el bloqueo y el slot
                     if ($startTime < $slotEnd && $endTime > $slotStart) {
-                        // Si el empleado está en la lista de employee_ids, lo quitamos
-                        if (isset($slot['employee_ids']) && in_array($block->employee_id, $slot['employee_ids'])) {
-                            $employeeKey = array_search($block->employee_id, $slot['employee_ids']);
-                            if ($employeeKey !== false) {
-                                // Añadir a blocked_employee_ids
-                                if (!isset($slots[$index]['blocked_employee_ids'])) {
-                                    $slots[$index]['blocked_employee_ids'] = [];
-                                }
-                                $slots[$index]['blocked_employee_ids'][] = $block->employee_id;
-                                
-                                // Quitar de employee_ids
-                                unset($slots[$index]['employee_ids'][$employeeKey]);
-                                $slots[$index]['employee_ids'] = array_values($slots[$index]['employee_ids']);
-                            }
+                        // Registrar este empleado como bloqueado para este slot
+                        $slotKey = $slot['start'] . '_' . $slot['end'];
+                        if (!isset($blockedEmployeeMap[$slotKey])) {
+                            $blockedEmployeeMap[$slotKey] = [];
                         }
+                        $blockedEmployeeMap[$slotKey][] = $block->employee_id;
                     }
                 }
-                
-                // Registrar este bloqueo para no crear un slot duplicado
+
+                // También registrar el bloqueo como un slot ocupado
                 $key = $startTime->format('Y-m-d H:i:s') . '_' . $endTime->format('Y-m-d H:i:s');
-                $blockedSlotMap[$key] = true;
-                
-                // Solo añadir a occupiedSlots si no existe ya
                 if (!isset($occupiedSlots[$key])) {
                     $occupiedSlots[$key] = [
                         'start' => $startTime->toDateTimeString(),
@@ -435,72 +422,155 @@ class AppoimentSuggestionsController extends Controller
                         'time_label' => 'blocked'
                     ];
                 }
-                
                 $occupiedSlots[$key]['blocked_employee_ids'][] = $block->employee_id;
+            }
+
+            // Ahora aplicamos los bloqueos a los slots existentes
+            foreach ($slots as $index => $slot) {
+                $slotKey = $slot['start'] . '_' . $slot['end'];
+                if (isset($blockedEmployeeMap[$slotKey])) {
+                    // Hay empleados bloqueados para este slot
+                    $blockedIds = array_unique($blockedEmployeeMap[$slotKey]);
+
+                    // Inicializar blocked_employee_ids si no existe
+                    if (!isset($slots[$index]['blocked_employee_ids'])) {
+                        $slots[$index]['blocked_employee_ids'] = [];
+                    }
+
+                    // Añadir los empleados bloqueados
+                    $slots[$index]['blocked_employee_ids'] = array_values(array_unique(
+                        array_merge($slots[$index]['blocked_employee_ids'], $blockedIds)
+                    ));
+
+                    // Quitar los empleados bloqueados de employee_ids
+                    if (isset($slots[$index]['employee_ids']) && !empty($slots[$index]['employee_ids'])) {
+                        $slots[$index]['employee_ids'] = array_values(array_diff(
+                            $slots[$index]['employee_ids'],
+                            $blockedIds
+                        ));
+                    }
+                }
             }
         }
 
         // Agregar información de ocupación a los slots existentes
         foreach ($slots as &$slot) {
-            $key = $slot['start'] . '_' . $slot['end'];
+            $slotKey = $slot['start'] . '_' . $slot['end'];
 
-            if (isset($occupiedSlots[$key])) {
-                $slot['occupied_employee_ids'] = array_values(array_unique($occupiedSlots[$key]['occupied_employee_ids'] ?? []));
-                $slot['blocked_employee_ids'] = array_values(array_unique($occupiedSlots[$key]['blocked_employee_ids'] ?? []));
-            } else {
+            // Inicializar arrays si no existen
+            if (!isset($slot['occupied_employee_ids'])) {
                 $slot['occupied_employee_ids'] = [];
+            }
+            if (!isset($slot['blocked_employee_ids'])) {
                 $slot['blocked_employee_ids'] = [];
             }
-            
+
             // Asegurarse de que employee_ids sea un array numérico
             if (isset($slot['employee_ids'])) {
                 $slot['employee_ids'] = array_values(array_unique($slot['employee_ids']));
+            } else {
+                $slot['employee_ids'] = [];
             }
         }
-        
-        // Agregar slots completamente ocupados si no existen ya y no son bloqueos duplicados
-        foreach ($occupiedSlots as $key => $occupiedSlot) {
-            // Solo añadir si no es un bloqueo que ya se ha procesado
-            if (isset($occupiedSlot['time_label']) && $occupiedSlot['time_label'] === 'blocked' && isset($blockedSlotMap[$key])) {
-                // Verificar si todos los empleados ya han sido movidos a blocked_employee_ids en slots existentes
-                $allEmployeesProcessed = true;
-                foreach ($occupiedSlot['blocked_employee_ids'] as $blockedId) {
-                    $found = false;
-                    foreach ($slots as $slot) {
-                        if (isset($slot['blocked_employee_ids']) && in_array($blockedId, $slot['blocked_employee_ids'])) {
-                            $found = true;
-                            break;
-                        }
-                    }
-                    if (!$found) {
-                        $allEmployeesProcessed = false;
+
+        // Ahora vamos a combinar los slots bloqueados con los disponibles si se solapan
+        $finalSlots = [];
+        $processedKeys = [];
+
+        // Primero procesamos los slots disponibles
+        foreach ($slots as $slot) {
+            $slotStart = Carbon::parse($slot['start']);
+            $slotEnd = Carbon::parse($slot['end']);
+            $added = false;
+
+            // Buscar si este slot se solapa con algún slot ocupado
+            foreach ($occupiedSlots as $key => $occupiedSlot) {
+                if (isset($processedKeys[$key])) continue;
+
+                $occStart = Carbon::parse($occupiedSlot['start']);
+                $occEnd = Carbon::parse($occupiedSlot['end']);
+
+                // Si hay solapamiento exacto o parcial
+                if (($slotStart->eq($occStart) && $slotEnd->eq($occEnd)) ||
+                    ($slotStart < $occEnd && $slotEnd > $occStart)
+                ) {
+
+                    // Si es un bloqueo, combinar la información
+                    if ($occupiedSlot['time_label'] === 'blocked') {
+                        // Combinar los empleados bloqueados
+                        $blockedIds = array_values(array_unique(
+                            array_merge($slot['blocked_employee_ids'], $occupiedSlot['blocked_employee_ids'])
+                        ));
+
+                        // Asegurarse de que los empleados bloqueados no estén en employee_ids
+                        $availableIds = array_values(array_diff(
+                            $slot['employee_ids'],
+                            $blockedIds
+                        ));
+
+                        // Crear un slot combinado
+                        $combinedSlot = [
+                            'start' => $slot['start'],
+                            'end' => $slot['end'],
+                            'employee_ids' => $availableIds,
+                            'service_id' => $slot['service_id'],
+                            'is_out_of_schedule' => $slot['is_out_of_schedule'] ?? false,
+                            'time_label' => $slot['time_label'],
+                            'occupied_employee_ids' => $slot['occupied_employee_ids'],
+                            'blocked_employee_ids' => $blockedIds
+                        ];
+
+                        $finalSlots[] = $combinedSlot;
+                        $processedKeys[$key] = true;
+                        $added = true;
                         break;
                     }
                 }
-                
-                // Si todos los empleados bloqueados ya están marcados en slots existentes, no añadir este slot
-                if ($allEmployeesProcessed) {
-                    continue;
-                }
-            }
-            
-            $exists = false;
-            foreach ($slots as $slot) {
-                if ($slot['start'] === $occupiedSlot['start'] && $slot['end'] === $occupiedSlot['end']) {
-                    $exists = true;
-                    break;
-                }
             }
 
-            if (!$exists) {
-                $occupiedSlot['employee_ids'] = []; // No hay empleados disponibles
-                $occupiedSlot['occupied_employee_ids'] = array_values(array_unique($occupiedSlot['occupied_employee_ids']));
-                $occupiedSlot['blocked_employee_ids'] = array_values(array_unique($occupiedSlot['blocked_employee_ids']));
-                $slots[] = $occupiedSlot;
+            // Si no se combinó con ningún slot ocupado, añadirlo tal cual
+            if (!$added) {
+                $finalSlots[] = $slot;
             }
         }
 
-        return $slots;
+        // Añadir los slots ocupados que no se hayan procesado
+        foreach ($occupiedSlots as $key => $occupiedSlot) {
+            if (!isset($processedKeys[$key])) {
+                // Verificar si este slot ocupado se solapa con alguno de los slots finales
+                $occStart = Carbon::parse($occupiedSlot['start']);
+                $occEnd = Carbon::parse($occupiedSlot['end']);
+                $exists = false;
+
+                foreach ($finalSlots as $finalSlot) {
+                    $finalStart = Carbon::parse($finalSlot['start']);
+                    $finalEnd = Carbon::parse($finalSlot['end']);
+
+                    // Si hay solapamiento exacto o parcial
+                    if (($finalStart->eq($occStart) && $finalEnd->eq($occEnd)) ||
+                        ($finalStart < $occEnd && $finalEnd > $occStart)
+                    ) {
+                        $exists = true;
+                        break;
+                    }
+                }
+
+                // Solo añadir si no existe un slot que se solape
+                if (!$exists) {
+                    // Asegurarse de que tiene todos los campos necesarios
+                    if (!isset($occupiedSlot['employee_ids'])) {
+                        $occupiedSlot['employee_ids'] = [];
+                    }
+                    if (!isset($occupiedSlot['is_out_of_schedule'])) {
+                        $occupiedSlot['is_out_of_schedule'] = false;
+                    }
+
+                    $finalSlots[] = $occupiedSlot;
+                }
+            }
+        }
+
+        return $finalSlots;
     }
 
     // Reemplazar el método anterior que no se usa
