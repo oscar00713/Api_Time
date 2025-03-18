@@ -376,24 +376,55 @@ class AppoimentSuggestionsController extends Controller
                     'start' => $startTime->toDateTimeString(),
                     'end' => $endTime->toDateTimeString(),
                     'occupied_employee_ids' => [],
-                    'blocked_employee_ids' => [], // Add blocked_employee_ids field
+                    'blocked_employee_ids' => [], 
                     'service_id' => $app->service_id,
-                    'time_label' => 'occupied' // Etiqueta para slots ocupados
+                    'time_label' => 'occupied'
                 ];
             }
 
             $occupiedSlots[$key]['occupied_employee_ids'][] = $app->user_id;
         }
 
+        // Crear un mapa de slots bloqueados
+        $blockedSlotMap = [];
+        
         // Add blocked appointments to the map
         if ($blockedAppointments) {
             foreach ($blockedAppointments as $block) {
                 $startTime = Carbon::parse($block->datetime_start);
                 // For blocked appointments, we'll use a 30-minute duration by default
-                // You might want to adjust this based on your business logic
                 $endTime = $startTime->copy()->addMinutes(30);
+                
+                // Buscar si hay algún slot disponible que se solape con este bloqueo
+                foreach ($slots as $index => $slot) {
+                    $slotStart = Carbon::parse($slot['start']);
+                    $slotEnd = Carbon::parse($slot['end']);
+                    
+                    // Si hay solapamiento entre el bloqueo y el slot
+                    if ($startTime < $slotEnd && $endTime > $slotStart) {
+                        // Si el empleado está en la lista de employee_ids, lo quitamos
+                        if (isset($slot['employee_ids']) && in_array($block->employee_id, $slot['employee_ids'])) {
+                            $employeeKey = array_search($block->employee_id, $slot['employee_ids']);
+                            if ($employeeKey !== false) {
+                                // Añadir a blocked_employee_ids
+                                if (!isset($slots[$index]['blocked_employee_ids'])) {
+                                    $slots[$index]['blocked_employee_ids'] = [];
+                                }
+                                $slots[$index]['blocked_employee_ids'][] = $block->employee_id;
+                                
+                                // Quitar de employee_ids
+                                unset($slots[$index]['employee_ids'][$employeeKey]);
+                                $slots[$index]['employee_ids'] = array_values($slots[$index]['employee_ids']);
+                            }
+                        }
+                    }
+                }
+                
+                // Registrar este bloqueo para no crear un slot duplicado
                 $key = $startTime->format('Y-m-d H:i:s') . '_' . $endTime->format('Y-m-d H:i:s');
-
+                $blockedSlotMap[$key] = true;
+                
+                // Solo añadir a occupiedSlots si no existe ya
                 if (!isset($occupiedSlots[$key])) {
                     $occupiedSlots[$key] = [
                         'start' => $startTime->toDateTimeString(),
@@ -401,10 +432,10 @@ class AppoimentSuggestionsController extends Controller
                         'occupied_employee_ids' => [],
                         'blocked_employee_ids' => [],
                         'service_id' => $block->service_id,
-                        'time_label' => 'blocked' // Etiqueta para slots bloqueados
+                        'time_label' => 'blocked'
                     ];
                 }
-
+                
                 $occupiedSlots[$key]['blocked_employee_ids'][] = $block->employee_id;
             }
         }
@@ -418,7 +449,7 @@ class AppoimentSuggestionsController extends Controller
                 $slot['blocked_employee_ids'] = array_values(array_unique($occupiedSlots[$key]['blocked_employee_ids'] ?? []));
             } else {
                 $slot['occupied_employee_ids'] = [];
-                $slot['blocked_employee_ids'] = []; // Add empty blocked_employee_ids array
+                $slot['blocked_employee_ids'] = [];
             }
             
             // Asegurarse de que employee_ids sea un array numérico
@@ -427,8 +458,32 @@ class AppoimentSuggestionsController extends Controller
             }
         }
         
-        // Agregar slots completamente ocupados si no existen ya
+        // Agregar slots completamente ocupados si no existen ya y no son bloqueos duplicados
         foreach ($occupiedSlots as $key => $occupiedSlot) {
+            // Solo añadir si no es un bloqueo que ya se ha procesado
+            if (isset($occupiedSlot['time_label']) && $occupiedSlot['time_label'] === 'blocked' && isset($blockedSlotMap[$key])) {
+                // Verificar si todos los empleados ya han sido movidos a blocked_employee_ids en slots existentes
+                $allEmployeesProcessed = true;
+                foreach ($occupiedSlot['blocked_employee_ids'] as $blockedId) {
+                    $found = false;
+                    foreach ($slots as $slot) {
+                        if (isset($slot['blocked_employee_ids']) && in_array($blockedId, $slot['blocked_employee_ids'])) {
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) {
+                        $allEmployeesProcessed = false;
+                        break;
+                    }
+                }
+                
+                // Si todos los empleados bloqueados ya están marcados en slots existentes, no añadir este slot
+                if ($allEmployeesProcessed) {
+                    continue;
+                }
+            }
+            
             $exists = false;
             foreach ($slots as $slot) {
                 if ($slot['start'] === $occupiedSlot['start'] && $slot['end'] === $occupiedSlot['end']) {
