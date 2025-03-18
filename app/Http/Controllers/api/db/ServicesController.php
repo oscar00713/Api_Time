@@ -343,59 +343,109 @@ class ServicesController extends Controller
 
             // Actualizar rangos solo si se proporcionan
             if ($request->has('ranges')) {
-                // Eliminar rangos y relaciones anteriores
-                DB::connection($dbConnection)->table('user_range')
-                    ->whereIn('range_id', function ($q) use ($id) {
-                        $q->select('id')->from('rangos')->where('service_id', $id);
-                    })
-                    ->delete();
-
-                DB::connection($dbConnection)->table('times_range')
-                    ->whereIn('range_id', function ($q) use ($id) {
-                        $q->select('id')->from('rangos')->where('service_id', $id);
-                    })
-                    ->delete();
-
-                DB::connection($dbConnection)->table('rangos')->where('service_id', $id)->delete();
-
-                // Insertar nuevos rangos
-                foreach ($request->ranges as $range) {
-                    // $range['days'] es un array de números (1: lunes, 2: martes, ..., 7: domingo)
-                    $monday    = in_array(1, $range['days']);
-                    $tuesday   = in_array(2, $range['days']);
-                    $wednesday = in_array(3, $range['days']);
-                    $thursday  = in_array(4, $range['days']);
-                    $friday    = in_array(5, $range['days']);
-                    $saturday  = in_array(6, $range['days']);
-                    $sunday    = in_array(7, $range['days']);
-
-                    // Insertar el rango en la tabla rangos
-                    $rangeId = $query->table('rangos')->insertGetId([
-                        'service_id' => $id,
-                        'monday'    => $monday,
-                        'tuesday'   => $tuesday,
-                        'wednesday' => $wednesday,
-                        'thursday'  => $thursday,
-                        'friday'    => $friday,
-                        'saturday'  => $saturday,
-                        'sunday'    => $sunday,
-                    ]);
+                // En lugar de eliminar todos los rangos, vamos a actualizarlos
+                $existingRanges = DB::connection($dbConnection)
+                    ->table('rangos')
+                    ->where('service_id', $id)
+                    ->get();
+                
+                $rangeMap = []; // Para mapear los rangos existentes con los nuevos
+                
+                // Primero, actualizar los rangos existentes que coincidan
+                foreach ($request->ranges as $index => $rangeData) {
+                    // Convertir días a formato booleano
+                    $monday    = in_array(1, $rangeData['days']);
+                    $tuesday   = in_array(2, $rangeData['days']);
+                    $wednesday = in_array(3, $rangeData['days']);
+                    $thursday  = in_array(4, $rangeData['days']);
+                    $friday    = in_array(5, $rangeData['days']);
+                    $saturday  = in_array(6, $rangeData['days']);
+                    $sunday    = in_array(7, $rangeData['days']);
                     
-                    // Insertar los horarios para este rango (tabla times_range) SOLO UNA VEZ
-                    foreach ($range['times'] as $time) {
-                        $query->table('times_range')->insert([
-                            'range_id' => $rangeId,
-                            'hora_inicio' => $time['start'],
-                            'hora_fim' => $time['end'],
+                    if ($index < count($existingRanges)) {
+                        // Actualizar rango existente
+                        $existingRange = $existingRanges[$index];
+                        $query->table('rangos')
+                            ->where('id', $existingRange->id)
+                            ->update([
+                                'monday'    => $monday,
+                                'tuesday'   => $tuesday,
+                                'wednesday' => $wednesday,
+                                'thursday'  => $thursday,
+                                'friday'    => $friday,
+                                'saturday'  => $saturday,
+                                'sunday'    => $sunday,
+                            ]);
+                        
+                        $rangeMap[$index] = $existingRange->id;
+                        
+                        // Actualizar horarios (eliminar los existentes y crear nuevos)
+                        $query->table('times_range')
+                            ->where('range_id', $existingRange->id)
+                            ->delete();
+                            
+                        foreach ($rangeData['times'] as $time) {
+                            $query->table('times_range')->insert([
+                                'range_id' => $existingRange->id,
+                                'hora_inicio' => $time['start'],
+                                'hora_fim' => $time['end'],
+                            ]);
+                        }
+                        
+                        // Actualizar especialistas (eliminar los existentes y crear nuevos)
+                        $query->table('user_range')
+                            ->where('range_id', $existingRange->id)
+                            ->delete();
+                            
+                        foreach ($rangeData['specialist_in_range'] as $specialistId) {
+                            $query->table('user_range')->insert([
+                                'range_id' => $existingRange->id,
+                                'user_id' => $specialistId,
+                            ]);
+                        }
+                    } else {
+                        // Crear nuevo rango si hay más rangos en la solicitud que existentes
+                        $rangeId = $query->table('rangos')->insertGetId([
+                            'service_id' => $id,
+                            'monday'    => $monday,
+                            'tuesday'   => $tuesday,
+                            'wednesday' => $wednesday,
+                            'thursday'  => $thursday,
+                            'friday'    => $friday,
+                            'saturday'  => $saturday,
+                            'sunday'    => $sunday,
                         ]);
+                        
+                        $rangeMap[$index] = $rangeId;
+                        
+                        // Insertar horarios para el nuevo rango
+                        foreach ($rangeData['times'] as $time) {
+                            $query->table('times_range')->insert([
+                                'range_id' => $rangeId,
+                                'hora_inicio' => $time['start'],
+                                'hora_fim' => $time['end'],
+                            ]);
+                        }
+                        
+                        // Asignar especialistas para el nuevo rango
+                        foreach ($rangeData['specialist_in_range'] as $specialistId) {
+                            $query->table('user_range')->insert([
+                                'range_id' => $rangeId,
+                                'user_id' => $specialistId,
+                            ]);
+                        }
                     }
-                    
-                    // Asignar especialistas para este rango (tabla user_range)
-                    foreach ($range['specialist_in_range'] as $specialistId) {
-                        $query->table('user_range')->insert([
-                            'range_id' => $rangeId,
-                            'user_id' => $specialistId,
-                        ]);
+                }
+                
+                // Eliminar rangos sobrantes si hay menos rangos en la solicitud que existentes
+                if (count($existingRanges) > count($request->ranges)) {
+                    $rangesToDelete = $existingRanges->slice(count($request->ranges));
+                    foreach ($rangesToDelete as $range) {
+                        // Eliminar relaciones primero
+                        $query->table('user_range')->where('range_id', $range->id)->delete();
+                        $query->table('times_range')->where('range_id', $range->id)->delete();
+                        // Eliminar el rango
+                        $query->table('rangos')->where('id', $range->id)->delete();
                     }
                 }
             }
