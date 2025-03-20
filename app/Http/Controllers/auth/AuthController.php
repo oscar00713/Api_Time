@@ -99,16 +99,27 @@ class AuthController extends Controller
             'success' => true,
             // 'expires_in' => auth()->factory()->getTTL() * 60
         ])->cookie(
-            $cookieParams['name'],
-            $cookieParams['value'],
-            $cookieParams['minutes'],
-            $cookieParams['path'],
-            $cookieParams['domain'],
-            $cookieParams['secure'],
-            $cookieParams['httpOnly'],
-            false,
-            $cookieParams['sameSite']
+            'ataco',                // Nombre de la cookie
+            $token,                 // Valor de la cookie
+            $minutes,               // Duración en minutos (1 día en este caso)
+            '/',                    // Ruta de la cookie
+            '.timeboard.live',                   // Dominio de la cookie (null para el actual)
+            true,                   // Solo enviar por HTTPS si está en producción cambiar a true en producción
+            true,                   // Hacerla accesible solo a HTTP (no accesible desde JS)
+            false,                  // No marcar como "SameSite" en este ejemplo
+            'None'                // Política SameSite (reemplázalo si necesitas 'Lax')
         );
+        // ->cookie(
+        //     $cookieParams['name'],
+        //     $cookieParams['value'],
+        //     $cookieParams['minutes'],
+        //     $cookieParams['path'],
+        //     $cookieParams['domain'],
+        //     $cookieParams['secure'],
+        //     $cookieParams['httpOnly'],
+        //     false,
+        //     $cookieParams['sameSite']
+        // );
     }
 
     public function register(Request $request)

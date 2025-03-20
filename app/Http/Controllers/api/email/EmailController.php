@@ -57,16 +57,6 @@ class EmailController extends Controller
             true,                   // Hacerla accesible solo a HTTP (no accesible desde JS)
             false,                  // No marcar como "SameSite" en este ejemplo
             'None'                // Política SameSite (reemplázalo si necesitas 'Lax')
-        )->cookie(
-            'ataco',                // Nombre de la cookie
-            $token,                 // Valor de la cookie
-            $minutes,               // Duración en minutos (1 día en este caso)
-            '/',                    // Ruta de la cookie
-            '.timeboard.live',                   // Dominio de la cookie (null para el actual)
-            true,                   // Solo enviar por HTTPS si está en producción cambiar a true en producción
-            true,                   // Hacerla accesible solo a HTTP (no accesible desde JS)
-            false,                  // No marcar como "SameSite" en este ejemplo
-            'None'                // Política SameSite (reemplázalo si necesitas 'Lax')
         );
 
         return response()->json(['message' => 'ok']);
