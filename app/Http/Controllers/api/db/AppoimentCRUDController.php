@@ -4,12 +4,20 @@ namespace App\Http\Controllers\api\db;
 
 use Carbon\Carbon;
 use App\Http\Controllers\Controller;
+use App\Services\AuthorizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class AppoimentCRUDController extends Controller
 {
+    protected $authService;
+
+    public function __construct(AuthorizationService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     public function index(Request $request)
     {
         $dbConnection = $request->get('db_connection');
@@ -54,6 +62,18 @@ class AppoimentCRUDController extends Controller
         }
 
         $dbConnection = $request->get('db_connection');
+        $user = $request->get('user');
+
+        // Verificar permisos
+        if (!$this->authService->canAssignAppointment($user, $request->employee_id, $dbConnection)) {
+            return response()->json([
+                'error' => 'No tienes permiso para asignar este turno',
+                'details' => (int)$user['id'] === $request->employee_id 
+                    ? 'Necesitas el permiso "appointments_self_assign" para asignarte turnos a ti mismo'
+                    : 'Necesitas el permiso "appointments_self_others" para asignar turnos a otros especialistas'
+            ], 403);
+        }
+
         $query = DB::connection($dbConnection);
 
         try {
@@ -182,7 +202,20 @@ class AppoimentCRUDController extends Controller
         }
 
         $dbConnection = $request->get('db_connection');
+        $user = $request->get('user');
         $query = DB::connection($dbConnection);
+
+        // Si se está cambiando el especialista, verificar permisos
+        if ($request->has('employee_id')) {
+            if (!$this->authService->canAssignAppointment($user, $request->employee_id, $dbConnection)) {
+                return response()->json([
+                    'error' => 'No tienes permiso para reasignar este turno',
+                    'details' => (int)$user['id'] === $request->employee_id 
+                        ? 'Necesitas el permiso "appointments_self_assign" para asignarte turnos a ti mismo'
+                        : 'Necesitas el permiso "appointments_self_others" para asignar turnos a otros especialistas'
+                ], 403);
+            }
+        }
 
         try {
             $appointment = $query->table('appointments')->where('start_date', $id)->first();
