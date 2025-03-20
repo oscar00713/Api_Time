@@ -11,13 +11,14 @@ use App\Http\Controllers\api\CompanyController;
 use App\Http\Controllers\api\db\ClientController;
 use App\Http\Controllers\api\db\UserDBController;
 use App\Http\Controllers\api\db\ServicesController;
+use App\Http\Controllers\api\db\SettingsController;
 use App\Http\Controllers\api\email\EmailController;
 use App\Http\Controllers\api\db\SpecialistController;
 use App\Http\Controllers\api\CompanyEmployeesController;
 use App\Http\Controllers\api\db\AppoimentCRUDController;
 use App\Http\Controllers\api\email\InvitacionController;
-use App\Http\Controllers\api\db\AppoimentSuggestionsController;
 use App\Http\Controllers\api\db\BlockAppointmentController;
+use App\Http\Controllers\api\db\AppoimentSuggestionsController;
 use App\Http\Controllers\api\user_option\UserOptionsController;
 use App\Http\Controllers\api\invitacion\UserInvitationController;
 
@@ -53,4 +54,7 @@ Route::middleware('company')->group(function () {
     Route::apiResource('/appointments', AppoimentCRUDController::class);
     Route::post('/appointmentSuggestions', [AppoimentSuggestionsController::class, 'getSuggestions']);
     Route::post('/blockAppointment', [BlockAppointmentController::class, 'manageBlock']);
+
+    Route::get('/settings', [SettingsController::class, 'getSettings']);
+    Route::post('/settings', [SettingsController::class, 'updateSettings']);
 });

@@ -442,21 +442,14 @@ class AppoimentSuggestionsController extends Controller
                         array_merge($slots[$index]['blocked_employee_ids'], $blockedIds)
                     ));
 
-                    // Quitar los empleados bloqueados de employee_ids
-                    if (isset($slots[$index]['employee_ids']) && !empty($slots[$index]['employee_ids'])) {
-                        $slots[$index]['employee_ids'] = array_values(array_diff(
-                            $slots[$index]['employee_ids'],
-                            $blockedIds
-                        ));
-                    }
+                    // NO quitamos los empleados bloqueados de employee_ids
+                    // Mantenemos todos los empleados en employee_ids
                 }
             }
         }
 
         // Agregar información de ocupación a los slots existentes
         foreach ($slots as &$slot) {
-            $slotKey = $slot['start'] . '_' . $slot['end'];
-
             // Inicializar arrays si no existen
             if (!isset($slot['occupied_employee_ids'])) {
                 $slot['occupied_employee_ids'] = [];
@@ -502,11 +495,8 @@ class AppoimentSuggestionsController extends Controller
                             array_merge($slot['blocked_employee_ids'], $occupiedSlot['blocked_employee_ids'])
                         ));
 
-                        // Asegurarse de que los empleados bloqueados no estén en employee_ids
-                        $availableIds = array_values(array_diff(
-                            $slot['employee_ids'],
-                            $blockedIds
-                        ));
+                        // NO filtramos los employee_ids, mantenemos todos
+                        $availableIds = $slot['employee_ids'];
 
                         // Crear un slot combinado
                         $combinedSlot = [
