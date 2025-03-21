@@ -245,20 +245,20 @@ class AuthController extends Controller
     public function status(Request $request)
     {
         $user = $request->user;
-
+    
         // Si no hay usuario autenticado, devolver error
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
-
+    
         //preguntar si el usuario tiene el campo de email verificado
         if (!$user->email_verified) {
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
         }
-
-        // Cargar las relaciones de forma explícita con fresh para asegurar datos actualizados
-        $user = $user->fresh(['ownedCompanies', 'companies', 'userOptions', 'invitations.company']);
-
+    
+        // Cargar las relaciones de forma explícita con refresh para asegurar datos actualizados
+        $user = User::with(['ownedCompanies', 'companies', 'userOptions', 'invitations.company'])->find($user->id);
+    
         // Verificar si hay compañías propias
         $ownedCompanies = collect();
         if ($user->ownedCompanies) {
@@ -272,7 +272,7 @@ class AuthController extends Controller
                 ];
             });
         }
-
+    
         // Verificar si hay compañías invitadas
         $invitedCompanies = collect();
         if ($user->companies) {
@@ -286,13 +286,13 @@ class AuthController extends Controller
                 ];
             });
         }
-
+    
         // Combinar ambas colecciones
         $allCompanies = $ownedCompanies->merge($invitedCompanies);
-
+    
         // Verificar si hay opciones de usuario
         $userOptions = $user->userOptions ?? collect();
-
+    
         // Procesar invitaciones
         $userInvitations = collect();
         if ($user->invitations) {
@@ -310,7 +310,7 @@ class AuthController extends Controller
                 })
                 ->values();
         }
-
+    
         // Agregar información de depuración en desarrollo
         $debug = [];
         if (!app()->environment('production')) {
@@ -323,10 +323,12 @@ class AuthController extends Controller
                     'companies' => $user->relationLoaded('companies'),
                     'userOptions' => $user->relationLoaded('userOptions'),
                     'invitations' => $user->relationLoaded('invitations'),
-                ]
+                ],
+                'raw_owned_companies' => $user->ownedCompanies->toArray(),
+                'raw_companies' => $user->companies->toArray()
             ];
         }
-
+    
         return response()->json([
             'companies' => $allCompanies,
             'userOptions' => $userOptions,
