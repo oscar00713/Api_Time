@@ -250,7 +250,6 @@ class AuthController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
     
-        // Convertir array a modelo User si es necesario
         if (is_array($user)) {
             $user = User::find($user['id'] ?? null);
             if (!$user) {
@@ -262,7 +261,6 @@ class AuthController extends Controller
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
         }
     
-        // Cargar relaciones con eager loading
         $user->load([
             'ownedCompanies',
             'companies',
@@ -270,36 +268,38 @@ class AuthController extends Controller
             'invitations.company'
         ]);
     
-        // Obtener compañías a través de relaciones Eloquent
-        $ownedCompanies = $user->ownedCompanies->map(fn($company) => [
-            'id' => $company->id,
-            'name' => $company->name,
-            'server_name' => $company->server_name,
-            'db_name' => $company->db_name,
+        // Asegurar que siempre sean colecciones
+        $ownedCompanies = $user->ownedCompanies ? $user->ownedCompanies->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'server_name' => $c->server_name,
+            'db_name' => $c->db_name,
             'isOwner' => true,
-        ]);
+        ]) : collect();
     
-        $invitedCompanies = $user->companies->map(fn($company) => [
-            'id' => $company->id,
-            'name' => $company->name,
-            'server_name' => $company->server_name,
-            'db_name' => $company->db_name,
+        $invitedCompanies = $user->companies ? $user->companies->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'server_name' => $c->server_name,
+            'db_name' => $c->db_name,
             'isOwner' => false,
-        ]);
+        ]) : collect();
     
-        // Procesar invitaciones usando relaciones
-        $userInvitations = optional($user->invitations)->filter(function($invitacion) {
-            return $invitacion->accepted === null;
-        })->map(function($invitacion) {
+        // Combinación segura de colecciones
+        $allCompanies = $ownedCompanies->merge($invitedCompanies);
+    
+        $userInvitations = optional($user->invitations)->filter(function($inv) {
+            return $inv->accepted === null;
+        })->map(function($inv) {
             return [
-                'invitationtoken' => $invitacion->invitationtoken,
-                'sender_name' => $invitacion->sender_name,
-                'company' => optional($invitacion->company)->name ?: 'Desconocida',
+                'invitationtoken' => $inv->invitationtoken,
+                'sender_name' => $inv->sender_name,
+                'company' => optional($inv->company)->name ?: 'Desconocida',
             ];
         }) ?: [];
     
         return response()->json([
-            'companies' => $ownedCompanies->merge($invitedCompanies),
+            'companies' => $allCompanies->isEmpty() ? [] : $allCompanies,
             'userOptions' => $user->userOptions ?: collect(),
             'userInvitations' => $userInvitations,
             'user' => $user->only(['name', 'email']),
