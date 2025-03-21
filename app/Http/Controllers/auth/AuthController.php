@@ -268,52 +268,80 @@ class AuthController extends Controller
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
         }
     
+        // Inicializar colecciones vacías para evitar errores
+        $ownedCompanies = collect();
+        $invitedCompanies = collect();
+    
         // Obtener directamente las compañías propias desde la tabla companies
-        $ownedCompanies = Companies::where('user_id', $user->id)->get()->map(function ($company) {
-            return [
-                'id' => $company->id,
-                'name' => $company->name,
-                'server_name' => $company->server_name,
-                'db_name' => $company->db_name,
-                'isOwner' => true,
-            ];
-        });
+        try {
+            $ownedCompanies = Companies::where('user_id', $user->id)->get()->map(function ($company) {
+                return [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'server_name' => $company->server_name,
+                    'db_name' => $company->db_name,
+                    'isOwner' => true,
+                ];
+            });
+        } catch (\Exception $e) {
+            // Si hay error, mantener la colección vacía
+        }
     
         // Cargar las compañías invitadas a través de la relación
-        $user->load('companies');
-        $invitedCompanies = $user->companies->map(function ($company) {
-            return [
-                'id' => $company->id,
-                'name' => $company->name,
-                'server_name' => $company->server_name,
-                'db_name' => $company->db_name,
-                'isOwner' => false,
-            ];
-        });
+        try {
+            $user->load('companies');
+            if ($user->companies) {
+                $invitedCompanies = $user->companies->map(function ($company) {
+                    return [
+                        'id' => $company->id,
+                        'name' => $company->name,
+                        'server_name' => $company->server_name,
+                        'db_name' => $company->db_name,
+                        'isOwner' => false,
+                    ];
+                });
+            }
+        } catch (\Exception $e) {
+            // Si hay error, mantener la colección vacía
+        }
     
-        // Combinar ambas colecciones
-        $allCompanies = $ownedCompanies->merge($invitedCompanies);
+        // Combinar ambas colecciones con manejo de errores
+        $allCompanies = collect();
+        if (!$ownedCompanies->isEmpty()) {
+            $allCompanies = $allCompanies->merge($ownedCompanies);
+        }
+        if (!$invitedCompanies->isEmpty()) {
+            $allCompanies = $allCompanies->merge($invitedCompanies);
+        }
     
         // Cargar otras relaciones necesarias
-        $user->load(['userOptions', 'invitations.company']);
-        $userOptions = $user->userOptions ?? collect();
+        try {
+            $user->load(['userOptions', 'invitations.company']);
+            $userOptions = $user->userOptions ?? collect();
+        } catch (\Exception $e) {
+            $userOptions = collect();
+        }
     
-        // Procesar invitaciones
+        // Procesar invitaciones con manejo de errores
         $userInvitations = collect();
-        if ($user->relationLoaded('invitations') && $user->invitations) {
-            $userInvitations = $user->invitations
-                ->filter(function($invitacion) {
-                    return $invitacion->accepted === null;
-                })
-                ->map(function($invitacion) {
-                    $companyName = $invitacion->company ? $invitacion->company->name : 'Desconocida';
-                    return [
-                        'invitationtoken' => $invitacion->invitationtoken,
-                        'sender_name' => $invitacion->sender_name,
-                        'company' => $companyName,
-                    ];
-                })
-                ->values();
+        try {
+            if ($user->relationLoaded('invitations') && $user->invitations) {
+                $userInvitations = $user->invitations
+                    ->filter(function($invitacion) {
+                        return $invitacion->accepted === null;
+                    })
+                    ->map(function($invitacion) {
+                        $companyName = $invitacion->company ? $invitacion->company->name : 'Desconocida';
+                        return [
+                            'invitationtoken' => $invitacion->invitationtoken,
+                            'sender_name' => $invitacion->sender_name,
+                            'company' => $companyName,
+                        ];
+                    })
+                    ->values();
+            }
+        } catch (\Exception $e) {
+            // Si hay error, mantener la colección vacía
         }
     
         // Agregar información de depuración en desarrollo
@@ -324,8 +352,11 @@ class AuthController extends Controller
                 'user_type' => gettype($request->user),
                 'owned_companies_count' => $ownedCompanies->count(),
                 'invited_companies_count' => $invitedCompanies->count(),
+                'has_owned_companies' => !$ownedCompanies->isEmpty(),
+                'has_invited_companies' => !$invitedCompanies->isEmpty(),
                 'raw_owned_companies' => $ownedCompanies->toArray(),
-                'raw_invited_companies' => $invitedCompanies->toArray()
+                'raw_invited_companies' => $invitedCompanies->toArray(),
+                'error_info' => null
             ];
         }
     
