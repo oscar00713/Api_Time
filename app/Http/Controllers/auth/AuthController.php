@@ -41,20 +41,15 @@ class AuthController extends Controller
 
         $hashedPassword = $user->password;
         $inputPassword = $credentials['password'];
-        //dd(intval($inputPassword));
-        //  dd(Hash::info($hashedPassword));
 
         if (!Hash::check($inputPassword, $hashedPassword)) {
-
             return response()->json(['error' => 'error2'], 401);
         }
 
         //preguntar si el usuario  tiene el campo de emiel verificado
         if (!$user->email_verified) {
-
             //mandar el correo del ping antes verificar los intentos en la tabla users__invitations
             if ($user->invitations->attempts < 3) {
-
                 Mail::to($user->email)->send(new PostCreatedMail($user->email_hash));
                 $user->invitations()->create([
                     'attempts' => $user->invitations->attempts + 1,
@@ -65,11 +60,6 @@ class AuthController extends Controller
             }
         }
 
-        //enviar las companies del usuario relacion ownedCompanies
-        // $companies = $user->ownedCompanies;
-        // $userOptions = $user->userOptions;
-        // $userInvitations = $user->invitations;
-
         $token = JWTAuth::claims([
             'ip' => $ipAddress,
             // Otros datos personalizados que desees agregar
@@ -78,48 +68,24 @@ class AuthController extends Controller
         $years = 5;
         $minutes = 60 * 24 * 365 * $years;
 
-        // Determinar el dominio dinámicamente pero al estar en producccion pone siempre local corregirlo
+        // Configuración de cookie adaptada para ambos entornos
+        $cookieDomain = $isProduction ? env('COOKIE_DOMAIN', '.timeboard.live') : null;
+        $cookieSecure = $isProduction;
+        $cookieSameSite = $isProduction ? 'None' : 'Lax';
 
-        $domain = app()->environment('local') ? 'localhost' : '.timeboard.live';
-        $cookieParams = [
-            'name' => 'ataco',
-            'value' => $token,
-            'minutes' => $minutes,
-            'path' => '/',
-            'domain' => $isProduction ? '.timeboard.live' : 'localhost', // Dominio según entorno
-            'secure' => $isProduction, // HTTPS solo en producción
-            'httpOnly' => true,
-            'sameSite' => $isProduction ? 'None' : 'Lax', // Ajustar según necesidad
-        ];
         return response()->json([
-            // 'companies' => $companies,
-            // 'userOptions' => $userOptions,
-            // 'userInvitations' => $userInvitations,
-            // 'user' => $user->only(['name', 'email']),
             'success' => true,
-            // 'expires_in' => auth()->factory()->getTTL() * 60
         ])->cookie(
             'ataco',                // Nombre de la cookie
             $token,                 // Valor de la cookie
-            $minutes,               // Duración en minutos (1 día en este caso)
+            $minutes,               // Duración en minutos
             '/',                    // Ruta de la cookie
-            '.timeboard.live',                   // Dominio de la cookie (null para el actual)
-            true,                   // Solo enviar por HTTPS si está en producción cambiar a true en producción
-            true,                   // Hacerla accesible solo a HTTP (no accesible desde JS)
-            false,                  // No marcar como "SameSite" en este ejemplo
-            'None'                // Política SameSite (reemplázalo si necesitas 'Lax')
+            $cookieDomain,          // Dominio de la cookie (dinámico)
+            $cookieSecure,          // Solo enviar por HTTPS en producción
+            true,                   // HttpOnly (no accesible desde JS)
+            false,                  // Raw
+            $cookieSameSite         // SameSite policy (None en producción, Lax en local)
         );
-        // ->cookie(
-        //     $cookieParams['name'],
-        //     $cookieParams['value'],
-        //     $cookieParams['minutes'],
-        //     $cookieParams['path'],
-        //     $cookieParams['domain'],
-        //     $cookieParams['secure'],
-        //     $cookieParams['httpOnly'],
-        //     false,
-        //     $cookieParams['sameSite']
-        // );
     }
 
     public function register(Request $request)
