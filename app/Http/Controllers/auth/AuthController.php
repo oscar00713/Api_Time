@@ -246,127 +246,64 @@ class AuthController extends Controller
     {
         $user = $request->user;
     
-        // Si no hay usuario autenticado, devolver error
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
     
-        // Verificar si el usuario es un array y convertirlo a modelo si es necesario
+        // Convertir array a modelo User si es necesario
         if (is_array($user)) {
-            $userId = $user['id'] ?? null;
-            if (!$userId) {
-                return response()->json(['error' => 'Invalid user data'], 401);
-            }
-            $user = User::find($userId);
+            $user = User::find($user['id'] ?? null);
             if (!$user) {
                 return response()->json(['error' => 'User not found'], 404);
             }
         }
     
-        //preguntar si el usuario tiene el campo de email verificado
         if (!$user->email_verified) {
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
         }
     
-        // Inicializar colecciones vacías para evitar errores
-        $ownedCompanies = collect();
-        $invitedCompanies = collect();
+        // Cargar relaciones con eager loading
+        $user->load([
+            'ownedCompanies',
+            'companies',
+            'userOptions',
+            'invitations.company'
+        ]);
     
-        // Obtener directamente las compañías propias desde la tabla companies
-        try {
-            $ownedCompanies = Companies::where('user_id', $user->id)->get()->map(function ($company) {
-                return [
-                    'id' => $company->id,
-                    'name' => $company->name,
-                    'server_name' => $company->server_name,
-                    'db_name' => $company->db_name,
-                    'isOwner' => true,
-                ];
-            });
-        } catch (\Exception $e) {
-            // Si hay error, mantener la colección vacía
-        }
+        // Obtener compañías a través de relaciones Eloquent
+        $ownedCompanies = $user->ownedCompanies->map(fn($company) => [
+            'id' => $company->id,
+            'name' => $company->name,
+            'server_name' => $company->server_name,
+            'db_name' => $company->db_name,
+            'isOwner' => true,
+        ]);
     
-        // Cargar las compañías invitadas a través de la relación
-        try {
-            $user->load('companies');
-            if ($user->companies) {
-                $invitedCompanies = $user->companies->map(function ($company) {
-                    return [
-                        'id' => $company->id,
-                        'name' => $company->name,
-                        'server_name' => $company->server_name,
-                        'db_name' => $company->db_name,
-                        'isOwner' => false,
-                    ];
-                });
-            }
-        } catch (\Exception $e) {
-            // Si hay error, mantener la colección vacía
-        }
+        $invitedCompanies = $user->companies->map(fn($company) => [
+            'id' => $company->id,
+            'name' => $company->name,
+            'server_name' => $company->server_name,
+            'db_name' => $company->db_name,
+            'isOwner' => false,
+        ]);
     
-        // Combinar ambas colecciones con manejo de errores
-        $allCompanies = collect();
-        if (!$ownedCompanies->isEmpty()) {
-            $allCompanies = $allCompanies->merge($ownedCompanies);
-        }
-        if (!$invitedCompanies->isEmpty()) {
-            $allCompanies = $allCompanies->merge($invitedCompanies);
-        }
-    
-        // Cargar otras relaciones necesarias
-        try {
-            $user->load(['userOptions', 'invitations.company']);
-            $userOptions = $user->userOptions ?? collect();
-        } catch (\Exception $e) {
-            $userOptions = collect();
-        }
-    
-        // Procesar invitaciones con manejo de errores
-        $userInvitations = collect();
-        try {
-            if ($user->relationLoaded('invitations') && $user->invitations) {
-                $userInvitations = $user->invitations
-                    ->filter(function($invitacion) {
-                        return $invitacion->accepted === null;
-                    })
-                    ->map(function($invitacion) {
-                        $companyName = $invitacion->company ? $invitacion->company->name : 'Desconocida';
-                        return [
-                            'invitationtoken' => $invitacion->invitationtoken,
-                            'sender_name' => $invitacion->sender_name,
-                            'company' => $companyName,
-                        ];
-                    })
-                    ->values();
-            }
-        } catch (\Exception $e) {
-            // Si hay error, mantener la colección vacía
-        }
-    
-        // Agregar información de depuración en desarrollo
-        $debug = [];
-        if (!app()->environment('production')) {
-            $debug = [
-                'user_id' => $user->id,
-                'user_type' => gettype($request->user),
-                'owned_companies_count' => $ownedCompanies->count(),
-                'invited_companies_count' => $invitedCompanies->count(),
-                'has_owned_companies' => !$ownedCompanies->isEmpty(),
-                'has_invited_companies' => !$invitedCompanies->isEmpty(),
-                'raw_owned_companies' => $ownedCompanies->toArray(),
-                'raw_invited_companies' => $invitedCompanies->toArray(),
-                'error_info' => null
+        // Procesar invitaciones usando relaciones
+        $userInvitations = optional($user->invitations)->filter(function($invitacion) {
+            return $invitacion->accepted === null;
+        })->map(function($invitacion) {
+            return [
+                'invitationtoken' => $invitacion->invitationtoken,
+                'sender_name' => $invitacion->sender_name,
+                'company' => optional($invitacion->company)->name ?: 'Desconocida',
             ];
-        }
+        }) ?: [];
     
         return response()->json([
-            'companies' => $allCompanies,
-            'userOptions' => $userOptions,
-            'userInvitations' => $userInvitations->isEmpty() ? [] : $userInvitations,
+            'companies' => $ownedCompanies->merge($invitedCompanies),
+            'userOptions' => $user->userOptions ?: collect(),
+            'userInvitations' => $userInvitations,
             'user' => $user->only(['name', 'email']),
-            'success' => true,
-            'debug' => $debug
+            'success' => true
         ], 200);
     }
 
