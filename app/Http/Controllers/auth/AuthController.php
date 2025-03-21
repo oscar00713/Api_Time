@@ -256,41 +256,34 @@ class AuthController extends Controller
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
         }
     
-        // Cargar las relaciones de forma explícita con refresh para asegurar datos actualizados
-        $user = User::with(['ownedCompanies', 'companies', 'userOptions', 'invitations.company'])->find($user->id);
+        // Obtener directamente las compañías propias desde la tabla companies
+        $ownedCompanies = Companies::where('user_id', $user->id)->get()->map(function ($company) {
+            return [
+                'id' => $company->id,
+                'name' => $company->name,
+                'server_name' => $company->server_name,
+                'db_name' => $company->db_name,
+                'isOwner' => true,
+            ];
+        });
     
-        // Verificar si hay compañías propias
-        $ownedCompanies = collect();
-        if ($user->ownedCompanies) {
-            $ownedCompanies = $user->ownedCompanies->map(function ($company) {
-                return [
-                    'id' => $company->id,
-                    'name' => $company->name,
-                    'server_name' => $company->server_name,
-                    'db_name' => $company->db_name,
-                    'isOwner' => true,
-                ];
-            });
-        }
-    
-        // Verificar si hay compañías invitadas
-        $invitedCompanies = collect();
-        if ($user->companies) {
-            $invitedCompanies = $user->companies->map(function ($company) {
-                return [
-                    'id' => $company->id,
-                    'name' => $company->name,
-                    'server_name' => $company->server_name,
-                    'db_name' => $company->db_name,
-                    'isOwner' => false,
-                ];
-            });
-        }
+        // Cargar las compañías invitadas a través de la relación
+        $user->load('companies');
+        $invitedCompanies = $user->companies->map(function ($company) {
+            return [
+                'id' => $company->id,
+                'name' => $company->name,
+                'server_name' => $company->server_name,
+                'db_name' => $company->db_name,
+                'isOwner' => false,
+            ];
+        });
     
         // Combinar ambas colecciones
         $allCompanies = $ownedCompanies->merge($invitedCompanies);
     
-        // Verificar si hay opciones de usuario
+        // Cargar otras relaciones necesarias
+        $user->load(['userOptions', 'invitations.company']);
         $userOptions = $user->userOptions ?? collect();
     
         // Procesar invitaciones
@@ -316,16 +309,10 @@ class AuthController extends Controller
         if (!app()->environment('production')) {
             $debug = [
                 'user_id' => $user->id,
-                'owned_companies_count' => $user->ownedCompanies->count(),
-                'invited_companies_count' => $user->companies->count(),
-                'relations_loaded' => [
-                    'ownedCompanies' => $user->relationLoaded('ownedCompanies'),
-                    'companies' => $user->relationLoaded('companies'),
-                    'userOptions' => $user->relationLoaded('userOptions'),
-                    'invitations' => $user->relationLoaded('invitations'),
-                ],
-                'raw_owned_companies' => $user->ownedCompanies->toArray(),
-                'raw_companies' => $user->companies->toArray()
+                'owned_companies_count' => $ownedCompanies->count(),
+                'invited_companies_count' => $invitedCompanies->count(),
+                'raw_owned_companies' => $ownedCompanies->toArray(),
+                'raw_invited_companies' => $invitedCompanies->toArray()
             ];
         }
     
