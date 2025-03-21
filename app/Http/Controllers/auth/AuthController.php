@@ -166,29 +166,27 @@ class AuthController extends Controller
     {
         $user = $request->user;
 
-        $companies =  $user->ownedCompanies;
+        if (!$user) {
+            return response()->json(['error' => 'Usuario no autenticado'], 401);
+        }
 
-
-
+        // Cargar las relaciones necesarias
+        $user->load(['ownedCompanies', 'companies']);
+        
+        $companies = $user->ownedCompanies;
         $companiesInvitados = $user->companies;
-
         $allCompanies = $companiesInvitados->merge($companies);
-
-        // return response()->json(['message' => $allCompanies], 200);
 
         $hash = Str::random(5) . Str::uuid() . Str::random(5);
 
-        //desloguearme de las compañías que me han asignado
+        // Desloguear de las compañías
         foreach ($allCompanies as $company) {
-            //obtner el servidor y la base de datos
             try {
                 $serverName = $company->server_name;
-
-                // Asumimos que tienes una función para obtener las credenciales del servidor
                 $server = $this->companyDatabaseService->getCompanyDatabase($serverName);
 
                 if (!$server) {
-                    continue; // Si no se puede obtener el servidor, pasar a la siguiente compañía
+                    continue;
                 }
 
                 $userServer = Crypt::decrypt($server->db_username);
@@ -199,42 +197,75 @@ class AuthController extends Controller
                 $this->dynamicDatabaseService->configureConnection(
                     $server->db_host,
                     $server->db_port,
-                    $company->db_name, // Nombre de la base de datos de la compañía
+                    $company->db_name,
                     $userServer,
                     $passwordServer
                 );
 
                 DB::connection('dynamic_pgsql')->table('users')
-                    ->where('email', $user->email) //buscar por email
+                    ->where('email', $user->email)
                     ->update([
-                        'hash' => $hash, // Generar un nuevo hash
+                        'hash' => $hash,
                     ]);
             } catch (\Exception $e) {
                 continue;
             }
         }
 
-
+        // Actualizar el hash del usuario en la base de datos central
         $user->update([
             'hash' => $hash,
         ]);
 
-        return response()->json(['message' => 'ok'], 200);
+        // Invalidar el token JWT
+        try {
+            JWTAuth::invalidate(JWTAuth::getToken());
+        } catch (\Exception $e) {
+            // Si hay error al invalidar el token, continuar
+        }
+
+        // Eliminar la cookie
+        $isProduction = app()->environment('production');
+        $cookieDomain = $isProduction ? env('COOKIE_DOMAIN', '.timeboard.live') : null;
+
+        return response()->json(['message' => 'ok'], 200)
+            ->cookie(
+                'ataco',           // Nombre de la cookie
+                '',                // Valor vacío para eliminar
+                -1,                // Tiempo negativo para expirar inmediatamente
+                '/',               // Ruta
+                $cookieDomain,     // Dominio
+                $isProduction,     // Secure
+                true,              // HttpOnly
+                false,             // Raw
+                $isProduction ? 'None' : 'Lax' // SameSite
+            );
     }
 
     public function status(Request $request)
     {
-
         $user = $request->user;
 
+        // Si no hay usuario autenticado, devolver error
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-        //preguntar si el usuario  tiene el campo de emiel verificado
+        //preguntar si el usuario tiene el campo de email verificado
         if (!$user->email_verified) {
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
         }
 
+        // Asegurarse de que las relaciones estén cargadas
+        if (!$user->relationLoaded('ownedCompanies')) {
+            $user->load('ownedCompanies');
+        }
+        
+        if (!$user->relationLoaded('companies')) {
+            $user->load('companies');
+        }
+
         $ownedCompanies = $user->ownedCompanies->map(function ($company) {
-            // Añadir el atributo `companiesInvitation` como false
             return [
                 'id' => $company->id,
                 'name' => $company->name,
@@ -245,7 +276,6 @@ class AuthController extends Controller
         });
 
         $invitedCompanies = $user->companies->map(function ($company) {
-            // Añadir el atributo `companiesInvitation` como true
             return [
                 'id' => $company->id,
                 'name' => $company->name,
@@ -260,9 +290,17 @@ class AuthController extends Controller
         // Combinar ambas colecciones
         $allCompanies = $ownedCompanies->merge($invitedCompanies);
 
-        //enviar las companies del usuario relacion ownedCompanies evitar enviar
+        // Cargar userOptions si no está cargado
+        if (!$user->relationLoaded('userOptions')) {
+            $user->load('userOptions');
+        }
         $userOptions = $user->userOptions;
 
+        // Cargar invitaciones si no están cargadas
+        if (!$user->relationLoaded('invitations')) {
+            $user->load('invitations');
+        }
+        
         $userInvitations = $user->invitations
             ->filter(fn($invitacion) => $invitacion->accepted === null)
             ->map(fn($invitacion) => [
@@ -270,14 +308,12 @@ class AuthController extends Controller
                 'sender_name' => $invitacion->sender_name,
                 'company' => $invitacion->company->name,
             ])
-            ->values(); // Asegura que los índices sean consecutivos
-
+            ->values();
 
         return response()->json([
             'companies' => $allCompanies,
             'userOptions' => $userOptions,
-            'userInvitations' =>
-            $userInvitations->isEmpty() ? [] : $userInvitations,
+            'userInvitations' => $userInvitations->isEmpty() ? [] : $userInvitations,
             'user' => $user->only(['name', 'email']),
             'success' => true
         ], 200);
