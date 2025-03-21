@@ -251,6 +251,18 @@ class AuthController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
     
+        // Verificar si el usuario es un array y convertirlo a modelo si es necesario
+        if (is_array($user)) {
+            $userId = $user['id'] ?? null;
+            if (!$userId) {
+                return response()->json(['error' => 'Invalid user data'], 401);
+            }
+            $user = User::find($userId);
+            if (!$user) {
+                return response()->json(['error' => 'User not found'], 404);
+            }
+        }
+    
         //preguntar si el usuario tiene el campo de email verificado
         if (!$user->email_verified) {
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
@@ -288,7 +300,7 @@ class AuthController extends Controller
     
         // Procesar invitaciones
         $userInvitations = collect();
-        if ($user->invitations) {
+        if ($user->relationLoaded('invitations') && $user->invitations) {
             $userInvitations = $user->invitations
                 ->filter(function($invitacion) {
                     return $invitacion->accepted === null;
@@ -309,6 +321,7 @@ class AuthController extends Controller
         if (!app()->environment('production')) {
             $debug = [
                 'user_id' => $user->id,
+                'user_type' => gettype($request->user),
                 'owned_companies_count' => $ownedCompanies->count(),
                 'invited_companies_count' => $invitedCompanies->count(),
                 'raw_owned_companies' => $ownedCompanies->toArray(),
