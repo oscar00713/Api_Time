@@ -268,24 +268,11 @@ class AuthController extends Controller
             'invitations.company'
         ]);
     
-        // Asegurar que siempre sean colecciones
-        $ownedCompanies = $user->ownedCompanies ? $user->ownedCompanies->map(fn($c) => [
-            'id' => $c->id,
-            'name' => $c->name,
-            'server_name' => $c->server_name,
-            'db_name' => $c->db_name,
-            'isOwner' => true,
-        ]) : collect();
+        // Ensure they are collections
+        $ownedCompanies = $user->ownedCompanies instanceof \Illuminate\Support\Collection ? $user->ownedCompanies : collect();
+        $invitedCompanies = $user->companies instanceof \Illuminate\Support\Collection ? $user->companies : collect();
     
-        $invitedCompanies = $user->companies ? $user->companies->map(fn($c) => [
-            'id' => $c->id,
-            'name' => $c->name,
-            'server_name' => $c->server_name,
-            'db_name' => $c->db_name,
-            'isOwner' => false,
-        ]) : collect();
-    
-        // Combinación segura de colecciones
+        // Safe merging of collections
         $allCompanies = $ownedCompanies->merge($invitedCompanies);
     
         $userInvitations = optional($user->invitations)->filter(function($inv) {
