@@ -27,7 +27,6 @@ CREATE TABLE users_temp(
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    hash VARCHAR(255) NOT NULL,
     user_type VARCHAR(100) NOT NULL,
     active BOOLEAN NOT NULL DEFAULT true,
     phone VARCHAR(255),

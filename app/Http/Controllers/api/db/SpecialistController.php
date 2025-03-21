@@ -237,8 +237,20 @@ class SpecialistController extends Controller
             'registration' => 'nullable|string|max:50',
             'permissions' => 'nullable|array',
             'permissions.*' => 'nullable|in:' . implode(',', $this->allRoles),
-            'use_room' => 'nullable|boolean'
+            'use_room' => 'nullable|boolean',
+            'user_type' => 'string|max:50',
         ]);
+
+        if (request()->has('user_type') && request()->get('user_type') == 'fake') {
+            //guardar datos en la tabla userTemp
+            $user = DB::connection($dbConnection)->table('users_temp')->insertGetId([
+                'id' => time() . Str::random(8),
+                'name' => $validatedData['name'],
+                'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
+                'user_type' => 'fake',
+                'email' => Str::uuid() . '@timeboard.live'
+            ]);
+        }
 
         $user = $request->user;
         $email = strtolower($validatedData['email']);
@@ -277,7 +289,6 @@ class SpecialistController extends Controller
                     'badge_color' => $validatedData['badge_color'],
                     'active' => false,
                     'phone' => $validatedData['phone'] ?? '',
-                    'hash' => Str::random(60), // Genera un hash aleatorio
                     'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
                     'manage_salary' => $validatedData['manage_salary'] ?? false,
                     'use_room' => $validatedData['use_room'] ?? false,
