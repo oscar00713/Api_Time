@@ -256,66 +256,84 @@ class AuthController extends Controller
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
         }
 
-        // Asegurarse de que las relaciones estén cargadas
-        if (!$user->relationLoaded('ownedCompanies')) {
-            $user->load('ownedCompanies');
+        // Cargar las relaciones de forma explícita con fresh para asegurar datos actualizados
+        $user = $user->fresh(['ownedCompanies', 'companies', 'userOptions', 'invitations.company']);
+
+        // Verificar si hay compañías propias
+        $ownedCompanies = collect();
+        if ($user->ownedCompanies) {
+            $ownedCompanies = $user->ownedCompanies->map(function ($company) {
+                return [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'server_name' => $company->server_name,
+                    'db_name' => $company->db_name,
+                    'isOwner' => true,
+                ];
+            });
         }
-        
-        if (!$user->relationLoaded('companies')) {
-            $user->load('companies');
+
+        // Verificar si hay compañías invitadas
+        $invitedCompanies = collect();
+        if ($user->companies) {
+            $invitedCompanies = $user->companies->map(function ($company) {
+                return [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'server_name' => $company->server_name,
+                    'db_name' => $company->db_name,
+                    'isOwner' => false,
+                ];
+            });
         }
 
-        $ownedCompanies = $user->ownedCompanies->map(function ($company) {
-            return [
-                'id' => $company->id,
-                'name' => $company->name,
-                'server_name' => $company->server_name,
-                'db_name' => $company->db_name,
-                'isOwner' => true,
-            ];
-        });
-
-        $invitedCompanies = $user->companies->map(function ($company) {
-            return [
-                'id' => $company->id,
-                'name' => $company->name,
-                'server_name' => $company->server_name,
-                'db_name' => $company->db_name,
-                'isOwner' => false,
-            ];
-        });
-
-        $ownedCompanies = collect($ownedCompanies);
-        $invitedCompanies = collect($invitedCompanies);
         // Combinar ambas colecciones
         $allCompanies = $ownedCompanies->merge($invitedCompanies);
 
-        // Cargar userOptions si no está cargado
-        if (!$user->relationLoaded('userOptions')) {
-            $user->load('userOptions');
-        }
-        $userOptions = $user->userOptions;
+        // Verificar si hay opciones de usuario
+        $userOptions = $user->userOptions ?? collect();
 
-        // Cargar invitaciones si no están cargadas
-        if (!$user->relationLoaded('invitations')) {
-            $user->load('invitations');
+        // Procesar invitaciones
+        $userInvitations = collect();
+        if ($user->invitations) {
+            $userInvitations = $user->invitations
+                ->filter(function($invitacion) {
+                    return $invitacion->accepted === null;
+                })
+                ->map(function($invitacion) {
+                    $companyName = $invitacion->company ? $invitacion->company->name : 'Desconocida';
+                    return [
+                        'invitationtoken' => $invitacion->invitationtoken,
+                        'sender_name' => $invitacion->sender_name,
+                        'company' => $companyName,
+                    ];
+                })
+                ->values();
         }
-        
-        $userInvitations = $user->invitations
-            ->filter(fn($invitacion) => $invitacion->accepted === null)
-            ->map(fn($invitacion) => [
-                'invitationtoken' => $invitacion->invitationtoken,
-                'sender_name' => $invitacion->sender_name,
-                'company' => $invitacion->company->name,
-            ])
-            ->values();
+
+        // Agregar información de depuración en desarrollo
+        $debug = [];
+        if (!app()->environment('production')) {
+            $debug = [
+                'user_id' => $user->id,
+                'owned_companies_count' => $user->ownedCompanies->count(),
+                'invited_companies_count' => $user->companies->count(),
+                'relations_loaded' => [
+                    'ownedCompanies' => $user->relationLoaded('ownedCompanies'),
+                    'companies' => $user->relationLoaded('companies'),
+                    'userOptions' => $user->relationLoaded('userOptions'),
+                    'invitations' => $user->relationLoaded('invitations'),
+                ]
+            ];
+        }
 
         return response()->json([
             'companies' => $allCompanies,
             'userOptions' => $userOptions,
             'userInvitations' => $userInvitations->isEmpty() ? [] : $userInvitations,
             'user' => $user->only(['name', 'email']),
-            'success' => true
+            'success' => true,
+            'debug' => $debug
         ], 200);
     }
 
