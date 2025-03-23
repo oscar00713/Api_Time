@@ -244,7 +244,6 @@ class SpecialistController extends Controller
         if (request()->has('user_type') && request()->get('user_type') == 'fake') {
             //guardar datos en la tabla userTemp
             $user = DB::connection($dbConnection)->table('users_temp')->insertGetId([
-                'id' => time() . Str::random(8),
                 'name' => $validatedData['name'],
                 'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
                 'user_type' => 'fake',
@@ -373,12 +372,14 @@ class SpecialistController extends Controller
             'manage_salary' => 'nullable|boolean',
             'user_type' => 'nullable|string|max:50',
             'phone' => 'nullable|string|max:255',
-            'active' => 'required|boolean', // Asegúrate de validar 'active'
+            'active' => 'nullable|boolean', // Asegúrate de validar 'active'
             'permissions' => 'nullable|array', // Validación para permisos
             'permissions.*' => 'nullable|in:' . implode(',', $this->allRoles),
             'use_room' => 'nullable|boolean',
             'registration' => 'nullable|string|max:50'
         ]);
+
+
 
         //validar para cambiar en la tabla users_temp
         if ($validatedData['user_type'] == 'invitation') {
@@ -396,7 +397,7 @@ class SpecialistController extends Controller
                     $validatedData['permissions']
                 ) ?? json_encode([])
             ]);
-        } else {
+        } elseif ($validatedData['user_type'] == 'user') {
 
             //TODO: no se debe de cambiar el name ni email
             DB::connection($dbConnection)->table('users')->where('id', $id)->update([
@@ -421,6 +422,23 @@ class SpecialistController extends Controller
                 ['user_id' => $id],
                 $rolesData
             );
+        } elseif ($validatedData['user_type'] == 'fake') {
+
+            //guardar datos en la tabla userTemp
+            DB::connection($dbConnection)->table('users_temp')->where('id', $id)->update([
+
+                'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
+                'badge_color' => $validatedData['badge_color'],
+                'active' => $validatedData['active'],
+                'phone' => $validatedData['phone'] ?? '',
+                'manage_salary' => $validatedData['manage_salary'] ?? false,
+                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
+                'use_room' => $validatedData['use_room'] ?? false,
+                'registration' => $validatedData['registration'] ?? '',
+
+            ]);
+        } else {
+            return response()->json(['error' => 'error'], 409);
         }
         return response()->json(['message' => 'ok'], 201);
     }
