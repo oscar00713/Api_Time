@@ -268,10 +268,9 @@ class AuthController extends Controller
             'invitations.company'
         ]);
 
-        // Separar compañías en propiedad y en las que está invitado
+        // Ensure they are collections
         $ownedCompanies = $user->ownedCompanies instanceof \Illuminate\Support\Collection ? $user->ownedCompanies : collect();
         $invitedCompanies = $user->companies instanceof \Illuminate\Support\Collection ? $user->companies : collect();
-
         // Agregar isOwner a cada compañía
         $ownedCompanies = $ownedCompanies->map(function ($company) {
             $company['isOwner'] = true;
@@ -282,6 +281,8 @@ class AuthController extends Controller
             $company['isOwner'] = false;
             return $company;
         });
+        // Safe merging of collections
+        $allCompanies = $ownedCompanies->merge($invitedCompanies);
 
         $userInvitations = optional($user->invitations)->filter(function ($inv) {
             return $inv->accepted === null;
@@ -294,8 +295,7 @@ class AuthController extends Controller
         }) ?: [];
 
         return response()->json([
-            'ownedCompanies' => $ownedCompanies->isEmpty() ? [] : $ownedCompanies,
-            'invitedCompanies' => $invitedCompanies->isEmpty() ? [] : $invitedCompanies,
+            'companies' => $allCompanies->isEmpty() ? [] : $allCompanies,
             'userOptions' => $user->userOptions ?: collect(),
             'userInvitations' => $userInvitations,
             'user' => $user->only(['name', 'email']),
