@@ -240,16 +240,24 @@ class SpecialistController extends Controller
             'use_room' => 'nullable|boolean',
             'user_type' => 'string|max:50',
         ]);
-
-        if (request()->has('user_type') && request()->get('user_type') == 'fake') {
-            //guardar datos en la tabla userTemp
+        if (empty($validatedData['email']) || ($validatedData['user_type'] == 'fake')) {
+            do {
+                $validatedData['email'] = 'fake' . time() . rand(1000, 9999) . '@example.com';
+            } while (DB::table('users_temp')->where('email', $validatedData['email'])->exists());
             $user = DB::connection($dbConnection)->table('users_temp')->insertGetId([
                 'name' => $validatedData['name'],
                 'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
                 'user_type' => 'fake',
-                'email' => Str::uuid() . '@timeboard.live'
+                'email' => strtolower($validatedData['email']),
+                'badge_color' => $validatedData['badge_color'],
+                'active' => true,
+                'phone' => $validatedData['phone'] ?? '',
+                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
             ]);
+
+            return response()->json(['message' => 'ok'], 201);
         }
+
 
         $user = $request->user;
         $email = strtolower($validatedData['email']);
