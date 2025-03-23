@@ -245,48 +245,57 @@ class AuthController extends Controller
     public function status(Request $request)
     {
         $user = $request->user;
-    
+
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
-    
+
         if (is_array($user)) {
             $user = User::find($user['id'] ?? null);
             if (!$user) {
                 return response()->json(['error' => 'User not found'], 404);
             }
         }
-    
+
         if (!$user->email_verified) {
             return response()->json(['error' => 'NOT_CONFIRMED'], 401);
         }
-    
+
         $user->load([
             'ownedCompanies',
             'companies',
             'userOptions',
             'invitations.company'
         ]);
-    
-        // Ensure they are collections
+
+        // Separar compañías en propiedad y en las que está invitado
         $ownedCompanies = $user->ownedCompanies instanceof \Illuminate\Support\Collection ? $user->ownedCompanies : collect();
         $invitedCompanies = $user->companies instanceof \Illuminate\Support\Collection ? $user->companies : collect();
-    
-        // Safe merging of collections
-        $allCompanies = $ownedCompanies->merge($invitedCompanies);
-    
-        $userInvitations = optional($user->invitations)->filter(function($inv) {
+
+        // Agregar isOwner a cada compañía
+        $ownedCompanies = $ownedCompanies->map(function ($company) {
+            $company['isOwner'] = true;
+            return $company;
+        });
+
+        $invitedCompanies = $invitedCompanies->map(function ($company) {
+            $company['isOwner'] = false;
+            return $company;
+        });
+
+        $userInvitations = optional($user->invitations)->filter(function ($inv) {
             return $inv->accepted === null;
-        })->map(function($inv) {
+        })->map(function ($inv) {
             return [
                 'invitationtoken' => $inv->invitationtoken,
                 'sender_name' => $inv->sender_name,
                 'company' => optional($inv->company)->name ?: 'Desconocida',
             ];
         }) ?: [];
-    
+
         return response()->json([
-            'companies' => $allCompanies->isEmpty() ? [] : $allCompanies,
+            'ownedCompanies' => $ownedCompanies->isEmpty() ? [] : $ownedCompanies,
+            'invitedCompanies' => $invitedCompanies->isEmpty() ? [] : $invitedCompanies,
             'userOptions' => $user->userOptions ?: collect(),
             'userInvitations' => $userInvitations,
             'user' => $user->only(['name', 'email']),
