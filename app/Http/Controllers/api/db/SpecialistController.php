@@ -462,6 +462,8 @@ class SpecialistController extends Controller
 
         if ($user_type == 'invitation') {
             DB::connection($dbConnection)->table('users_temp')->where('id', $id)->delete();
+        } elseif ($user_type == 'fake') {
+            DB::connection($dbConnection)->table('users_temp')->where('id', $id)->delete();
         } else {
             DB::connection($dbConnection)->table('users')->where('id', $id)->delete();
             //delete roles of the specialist
