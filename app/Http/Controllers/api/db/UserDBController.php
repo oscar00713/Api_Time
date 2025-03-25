@@ -13,19 +13,29 @@ class UserDBController extends Controller
      */
     public function index(Request $request)
     {
-
         $dbConnection = $request->get('db_connection');
-        $users = DB::connection($dbConnection)
+
+        // Preparamos las dos subconsultas
+        $usersQuery = DB::connection($dbConnection)
             ->table('users')
-            ->select('id', 'name', 'email')  // Selecciona solo las columnas necesarias
-            ->paginate(10);  // Paginación, ajusta el número según sea necesario
+            ->select('id', 'name', 'email', 'user_type');
 
+        $tempUsersQuery = DB::connection($dbConnection)
+            ->table('users_temp')
+            ->select('id', 'name', 'email', 'user_type');
 
-        //enviar los usario de la DB paginados
+        // Realizamos la unión
+        $unionQuery = $usersQuery->unionAll($tempUsersQuery);
 
+        // Para poder paginar con union, se recomienda envolver la consulta en una subconsulta
+        $paginated = DB::connection($dbConnection)
+            ->table(DB::raw("({$unionQuery->toSql()}) as sub"))
+            ->mergeBindings($unionQuery) // importante para pasar los bindings de la unión
+            ->paginate(10);
 
-        return response()->json($users);
+        return response()->json($paginated);
     }
+
 
     /**
      * Store a newly created resource in storage.
