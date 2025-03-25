@@ -243,7 +243,7 @@ class SpecialistController extends Controller
         if (empty($validatedData['email']) || ($validatedData['user_type'] == 'fake')) {
             do {
                 $validatedData['email'] = 'fake' . time() . rand(1000, 9999) . '@example.com';
-            } while (DB::table('users_temp')->where('email', $validatedData['email'])->exists());
+            } while (DB::connection($dbConnection)->table('users_temp')->where('email', $validatedData['email'])->exists());
             $user = DB::connection($dbConnection)->table('users_temp')->insertGetId([
                 'name' => $validatedData['name'],
                 'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
