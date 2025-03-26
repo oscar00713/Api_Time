@@ -240,7 +240,7 @@ class SpecialistController extends Controller
             'use_room' => 'nullable|boolean',
             'user_type' => 'string|max:50',
         ]);
-        if (empty($validatedData['email']) || ($validatedData['users'] == 'fake')) {
+        if (empty($validatedData['email']) || ($validatedData['user_type'] == 'fake')) {
 
             $user = DB::connection($dbConnection)->table('users')->insertGetId([
                 'name' => $validatedData['name'],
