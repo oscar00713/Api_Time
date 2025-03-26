@@ -241,14 +241,13 @@ class SpecialistController extends Controller
             'user_type' => 'string|max:50',
         ]);
         if (empty($validatedData['email']) || ($validatedData['user_type'] == 'fake')) {
-            do {
-                $validatedData['email'] = 'fake' . time() . rand(1000, 9999) . '@example.com';
-            } while (DB::connection($dbConnection)->table('users_temp')->where('email', $validatedData['email'])->exists());
+
             $user = DB::connection($dbConnection)->table('users_temp')->insertGetId([
                 'name' => $validatedData['name'],
                 'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
                 'user_type' => 'fake',
-                'email' => strtolower($validatedData['email']),
+                'hash' => Str::random(15),
+                'email' => strtolower($validatedData['email']) ?? null,
                 'badge_color' => $validatedData['badge_color'],
                 'active' => true,
                 'phone' => $validatedData['phone'] ?? '',
@@ -260,6 +259,9 @@ class SpecialistController extends Controller
 
 
         $user = $request->user;
+        if (empty($validatedData['email'])) {
+            return response()->json(['error' => 'email_required'], 409);
+        }
         $email = strtolower($validatedData['email']);
 
         DB::beginTransaction();
@@ -288,7 +290,7 @@ class SpecialistController extends Controller
                 $companyName = $companyID["name"];
 
 
-                $userId = DB::connection($dbConnection)->table('users_temp')->insertGetId([
+                $userId = DB::connection($dbConnection)->table('users')->insertGetId([
                     'name' => $validatedData['name'],
                     'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
                     'user_type' => 'invitation',
@@ -374,6 +376,7 @@ class SpecialistController extends Controller
         //actulizar la tabla specialists
         $dbConnection = $request->get('db_connection');
         $validatedData = $request->validate([
+            'name' => 'nullable|string|max:255',
             'fixed_salary' => 'nullable|numeric',
             'badge_color' => 'nullable|string|max:50',
             'fixed_salary_frecuency' => 'nullable|string|max:50',
@@ -433,8 +436,8 @@ class SpecialistController extends Controller
         } elseif ($validatedData['user_type'] == 'fake') {
 
             //guardar datos en la tabla userTemp
-            DB::connection($dbConnection)->table('users_temp')->where('id', $id)->update([
-
+            DB::connection($dbConnection)->table('users')->where('id', $id)->update([
+                'name' => $validatedData['name'],
                 'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
                 'badge_color' => $validatedData['badge_color'],
                 'active' => $validatedData['active'],

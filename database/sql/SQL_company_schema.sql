@@ -8,9 +8,10 @@ CREATE TABLE global_options (
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255),
     hash VARCHAR(255) NOT NULL,
     user_type VARCHAR(100) NOT NULL,
+    central_id INTEGER,
     active BOOLEAN NOT NULL DEFAULT true,
     phone VARCHAR(255),
     registration VARCHAR(100),-- DNI, NIF, PASAPORTE, Matricula

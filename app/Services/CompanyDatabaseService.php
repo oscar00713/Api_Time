@@ -63,8 +63,8 @@ class CompanyDatabaseService
             file_get_contents(database_path('sql/SQL_company_schema.sql'))
         );
 
-        DB::connection('dynamic_pgsql')->table('users')->insert([
-            'id' => $user->id,
+        $temp_userId = DB::connection('dynamic_pgsql')->table('users')->insertGetId([
+            'central_id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'user_type' => 'user',
@@ -74,7 +74,7 @@ class CompanyDatabaseService
 
         //tambien agregar los roles de la compañía
         DB::connection('dynamic_pgsql')->table('roles')->insert([
-            'user_id' => $user->id,
+            'user_id' => $temp_userId,
             'manage_services' => true,
             'manage_users' => true,
             'manage_cash' => true,

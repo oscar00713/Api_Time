@@ -163,7 +163,7 @@ class UserInvitationController extends Controller
 
 
         DB::connection('dynamic_pgsql')->table('users')->insert([
-            'id' => $user->id,
+            'central_id' => $user->id,
             'name' => $user->name,
             'fixed_salary' => $usersTemp->fixed_salary,
             'user_type' => 'user',

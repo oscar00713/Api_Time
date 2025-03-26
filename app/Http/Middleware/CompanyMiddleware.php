@@ -78,7 +78,7 @@ class CompanyMiddleware
         // Conectar al pool de la compañía
         $result = null;
         try {
-            $result =  DB::connection('dynamic_pgsql')->table('users')->where('email', $tokenData->get('email'))->where('hash', $tokenData->get('hash'))->where('active', true)->first();
+            $result =  DB::connection('dynamic_pgsql')->table('users')->where('email', $tokenData->get('email'))->where('hash', $tokenData->get('hash'))->where('active', true)->where('user_type', 'user')->first();
 
             if (!$result) {
                 return response()->json("UNAUTHORIZED16", 401);

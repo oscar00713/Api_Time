@@ -49,7 +49,7 @@ class AuthController extends Controller
         //preguntar si el usuario  tiene el campo de emiel verificado
         if (!$user->email_verified) {
             //mandar el correo del ping antes verificar los intentos en la tabla users__invitations
-            if ($user->invitations->attempts < 3) {
+            if ($user->invitations->attempts <= 3) {
                 Mail::to($user->email)->send(new PostCreatedMail($user->email_hash));
                 $user->invitations()->create([
                     'attempts' => $user->invitations->attempts + 1,
@@ -204,6 +204,7 @@ class AuthController extends Controller
 
                 DB::connection('dynamic_pgsql')->table('users')
                     ->where('email', $user->email)
+                    ->where('user_type', 'user')
                     ->update([
                         'hash' => $hash,
                     ]);
