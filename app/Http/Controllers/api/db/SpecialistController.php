@@ -290,7 +290,7 @@ class SpecialistController extends Controller
                 $companyName = $companyID["name"];
 
 
-                $userId = DB::connection($dbConnection)->table('users')->insertGetId([
+                $userId = DB::connection($dbConnection)->table('users_temp')->insertGetId([
                     'name' => $validatedData['name'],
                     'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
                     'user_type' => 'invitation',
