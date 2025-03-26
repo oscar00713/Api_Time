@@ -240,9 +240,9 @@ class SpecialistController extends Controller
             'use_room' => 'nullable|boolean',
             'user_type' => 'string|max:50',
         ]);
-        if (empty($validatedData['email']) || ($validatedData['user_type'] == 'fake')) {
+        if (empty($validatedData['email']) || ($validatedData['users'] == 'fake')) {
 
-            $user = DB::connection($dbConnection)->table('users_temp')->insertGetId([
+            $user = DB::connection($dbConnection)->table('users')->insertGetId([
                 'name' => $validatedData['name'],
                 'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
                 'user_type' => 'fake',
@@ -465,9 +465,12 @@ class SpecialistController extends Controller
 
         if ($user_type == 'invitation') {
             DB::connection($dbConnection)->table('users_temp')->where('id', $id)->delete();
-        } elseif ($user_type == 'fake') {
-            DB::connection($dbConnection)->table('users_temp')->where('id', $id)->delete();
-        } else {
+        }
+
+        // elseif ($user_type == 'fake') {
+        //     DB::connection($dbConnection)->table('users_temp')->where('id', $id)->delete();
+        // }
+        else {
             DB::connection($dbConnection)->table('users')->where('id', $id)->delete();
             //delete roles of the specialist
             DB::connection($dbConnection)->table('roles')->where('user_id', $id)->delete();
