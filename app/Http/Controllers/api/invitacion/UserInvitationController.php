@@ -162,7 +162,7 @@ class UserInvitationController extends Controller
 
 
 
-        DB::connection('dynamic_pgsql')->table('users')->insert([
+        $usertempId = DB::connection('dynamic_pgsql')->table('users')->insertGetId([
             'central_id' => $user->id,
             'name' => $user->name,
             'fixed_salary' => $usersTemp->fixed_salary,
@@ -179,7 +179,7 @@ class UserInvitationController extends Controller
         ]);
 
         $roles = json_decode($usersTemp->roles, true);
-        $rolesData = ['user_id' => $user->id];
+        $rolesData = ['user_id' => $usertempId];
 
         // Asignar valores a cada rol en la tabla de `roles`
         foreach ($roles as $value) { // Solo iteramos los valores
