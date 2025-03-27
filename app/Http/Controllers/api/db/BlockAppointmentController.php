@@ -77,6 +77,22 @@ class BlockAppointmentController extends Controller
             ->where('employee_id', $validated['employee_id'])
             ->first();
 
+
+        // Verificamos si existe un bloqueo del mismo usuario para el mismo servicio y hora pero diferente especialista
+        $existingUserBlock = $query->table('block_appointments')
+            ->where('service_id', $validated['service_id'])
+            ->where('datetime_start', $validated['datetime_start'])
+            ->where('user_id', $user['id'])
+            ->where('employee_id', '!=', $validated['employee_id'])
+            ->first();
+
+        // Si existe un bloqueo del mismo usuario para el mismo servicio y hora pero diferente especialista, lo eliminamos
+        if ($existingUserBlock) {
+            $query->table('block_appointments')
+                ->where('id', $existingUserBlock->id)
+                ->delete();
+        }
+
         if ($existingBlock && $existingBlock->user_id !== $user['id']) {
             // Si ya existe un bloqueo por otra persona, devolvemos error
             return response()->json([

@@ -70,8 +70,8 @@ class AuthController extends Controller
 
         // Configuración de cookie adaptada para ambos entornos
         $cookieDomain = $isProduction ? env('COOKIE_DOMAIN', '.timeboard.live') : null;
-        $cookieSecure = $isProduction;
-        $cookieSameSite = $isProduction ? 'None' : 'Lax';
+        // $cookieSecure = $isProduction;
+        // $cookieSameSite = $isProduction ? 'None' : 'Lax';
 
         return response()->json([
             'success' => true,
@@ -81,10 +81,10 @@ class AuthController extends Controller
             $minutes,               // Duración en minutos
             '/',                    // Ruta de la cookie
             $cookieDomain,          // Dominio de la cookie (dinámico)
-            $cookieSecure,          // Solo enviar por HTTPS en producción
+            true,                   // Solo enviar por HTTPS en producción
             true,                   // HttpOnly (no accesible desde JS)
             false,                  // Raw
-            $cookieSameSite         // SameSite policy (None en producción, Lax en local)
+            'None'                  // SameSite policy (None en producción, Lax en local)
         );
     }
 
