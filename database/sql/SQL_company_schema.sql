@@ -226,6 +226,7 @@ CREATE TABLE reminders (
 CREATE TABLE block_appointments(
     id SERIAL PRIMARY KEY,
     datetime_start TIMESTAMP NOT NULL,
+    datetime_end TIMESTAMP NOT NULL,
     user_id INTEGER NOT NULL,
     service_id INTEGER NOT NULL,
     employee_id INTEGER NOT NULL,

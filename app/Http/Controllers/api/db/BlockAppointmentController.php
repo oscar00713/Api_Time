@@ -61,6 +61,7 @@ class BlockAppointmentController extends Controller
         // Validamos los datos específicos para bloquear
         $validated = $request->validate([
             'datetime_start' => 'required|date',
+            'datetime_end' => 'required|date|after:datetime_start',
             'employee_id' => 'required|integer',
             'service_id' => 'required|integer',
         ]);
@@ -104,6 +105,7 @@ class BlockAppointmentController extends Controller
             $blockId = $query->table('block_appointments')
                 ->insertGetId([
                     'datetime_start' => $validated['datetime_start'],
+                    'datetime_end' => $validated['datetime_end'],
                     'employee_id' => $validated['employee_id'],
                     'service_id' => $validated['service_id'],
                     'user_id' => $user['id'],

@@ -97,9 +97,11 @@ class CompanyMiddleware
         // }
 
         $timezone = DB::connection('dynamic_pgsql')->table('settings')->where('name', 'timezone')->value('value');
+        // return response()->json($timezone);
         if ($timezone) {
             Config::set('app.timezone', $timezone);
         }
+
 
         $request->merge(['db_connection' => $this->dynamicDatabaseService->getConnectionName()]);
 

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Telescope\TelescopeServiceProvider;
@@ -24,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Establece el timezone por defecto de PHP
+        date_default_timezone_set(config('app.timezone'));
+
+        // Opcionalmente, configura Carbon para que utilice este timezone
+        Carbon::setLocale(config('app.locale'));
         Model::unguard();
     }
 }
