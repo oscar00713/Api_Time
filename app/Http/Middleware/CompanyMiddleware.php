@@ -100,6 +100,7 @@ class CompanyMiddleware
         // return response()->json($timezone);
         if ($timezone) {
             Config::set('app.timezone', $timezone);
+            date_default_timezone_set($timezone);
         }
 
 

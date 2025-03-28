@@ -110,12 +110,28 @@ class AppoimentSuggestionsController extends Controller
         $period = $this->getDateRange($validated);
         $employeeIds = $employees->pluck('id');
 
+        $timezone = config('app.timezone');
+
+
         // Corregimos la consulta para usar start_date en lugar de date
         $existingAppointments = $query->table('appointments')
             ->whereIn('employee_id', $employeeIds)
             ->whereBetween('start_date', [$period['start'], $period['end']])
             ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']);
 
+        // $start = Carbon::parse($period['start'])
+        //     ->setTimezone($timezone)
+        //     ->format('Y-m-d H:i:s');
+
+        // $end = Carbon::parse($period['end'])
+        //     ->setTimezone($timezone)
+        //     ->format('Y-m-d H:i:s');
+
+        // return response()->json([
+        //     'start' => $start,
+        //     'end' => $end,
+        //     'period' => CarbonPeriod::create($start, $end)
+        // ]);
         // Get blocked appointments - Mejoramos la consulta para asegurar que obtenemos todos los bloqueos
         $blockedAppointments = $query->table('block_appointments')
             ->where(function ($q) use ($period, $employeeIds) {
@@ -139,9 +155,9 @@ class AppoimentSuggestionsController extends Controller
         }
 
         // Si se solicita incluir los turnos tomados
-        if (isset($validated['include_taken']) && $validated['include_taken']) {
-            $allSlots = $this->addTakenSlotsInfo($allSlots, $existingAppointments, $blockedAppointments);
-        }
+
+        $allSlots = $this->addTakenSlotsInfo($allSlots, $existingAppointments, $blockedAppointments);
+
 
         // Ordenar todos los slots por fecha
         usort($allSlots, function ($a, $b) {
@@ -156,7 +172,9 @@ class AppoimentSuggestionsController extends Controller
     private function getDateRange(array $validated): array
     {
         // Use the timezone already set in the middleware
+        // $timezone = config('app.timezone');
         $now = Carbon::now();
+
 
         // Determinar fecha de inicio según el parámetro dayAndTime
         $start = match ($validated['dayAndTime']) {

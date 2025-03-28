@@ -26,10 +26,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Establece el timezone por defecto de PHP
-        date_default_timezone_set(config('app.timezone'));
+        // date_default_timezone_set(config('app.timezone'));
 
-        // Opcionalmente, configura Carbon para que utilice este timezone
-        Carbon::setLocale(config('app.locale'));
+        // // Opcionalmente, configura Carbon para que utilice este timezone
+        // Carbon::setLocale(config('app.locale'));
         Model::unguard();
     }
 }
