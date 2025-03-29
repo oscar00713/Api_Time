@@ -111,12 +111,19 @@ class AppoimentSuggestionsController extends Controller
         $employeeIds = $employees->pluck('id');
 
         $timezone = config('app.timezone');
+        // Asegúrate de que las fechas estén en el formato correcto
+        $startDate = Carbon::parse($period['start'])->startOfDay()->format('Y-m-d H:i:s');
+        $endDate = Carbon::parse($period['end'])->addDays(14)->endOfDay()->format('Y-m-d H:i:s');
 
+        // return response()->json([
+        //     'startDate' => $startDate,
+        //     'endDate' => $endDate,
+        // ]);
 
         // Corregimos la consulta para usar start_date en lugar de date
         $existingAppointments = $query->table('appointments')
             ->whereIn('employee_id', $employeeIds)
-            ->whereBetween('start_date', [$period['start'], $period['end']])
+            ->whereBetween('start_date', [$startDate, $endDate])
             ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']);
 
         // $start = Carbon::parse($period['start'])
@@ -134,8 +141,8 @@ class AppoimentSuggestionsController extends Controller
         // ]);
         // Get blocked appointments - Mejoramos la consulta para asegurar que obtenemos todos los bloqueos
         $blockedAppointments = $query->table('block_appointments')
-            ->where(function ($q) use ($period, $employeeIds) {
-                $q->whereBetween('datetime_start', [$period['start'], $period['end']])
+            ->where(function ($q) use ($startDate, $endDate, $employeeIds) {
+                $q->whereBetween('datetime_start', [$startDate, $endDate])
                     ->whereIn('employee_id', $employeeIds);
             })
             ->get(['id', 'datetime_start', 'employee_id', 'service_id']);
