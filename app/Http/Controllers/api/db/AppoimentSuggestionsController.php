@@ -500,20 +500,23 @@ class AppoimentSuggestionsController extends Controller
             $slotKey = $this->generateSlotKey($slotStart, $slotEnd);
 
             if (isset($blockedEmployeeMap[$slotKey])) {
-                // Filtrar los bloqueos por service_id
-                $blockedIds = array_filter($blockedEmployeeMap[$slotKey], function ($blocked) use ($slot) {
-                    return $blocked['service_id'] === $slot['service_id'];
-                });
+                // Asegúrate de que $blockedEmployeeMap[$slotKey] es un array antes de usar array_filter
+                if (is_array($blockedEmployeeMap[$slotKey])) {
+                    // Filtrar los bloqueos por service_id
+                    $blockedIds = array_filter($blockedEmployeeMap[$slotKey], function ($blocked) use ($slot) {
+                        return is_array($blocked) && $blocked['service_id'] === $slot['service_id'];
+                    });
 
-                // Inicializar blocked_employee_ids si no existe
-                if (!isset($slots[$index]['blocked_employee_ids'])) {
-                    $slots[$index]['blocked_employee_ids'] = [];
+                    // Inicializar blocked_employee_ids si no existe
+                    if (!isset($slots[$index]['blocked_employee_ids'])) {
+                        $slots[$index]['blocked_employee_ids'] = [];
+                    }
+
+                    // Añadir los empleados bloqueados
+                    $slots[$index]['blocked_employee_ids'] = array_values(array_unique(
+                        array_merge($slots[$index]['blocked_employee_ids'], $blockedIds)
+                    ));
                 }
-
-                // Añadir los empleados bloqueados
-                $slots[$index]['blocked_employee_ids'] = array_values(array_unique(
-                    array_merge($slots[$index]['blocked_employee_ids'], $blockedIds)
-                ));
             }
         }
 
