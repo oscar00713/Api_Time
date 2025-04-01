@@ -500,8 +500,10 @@ class AppoimentSuggestionsController extends Controller
             $slotKey = $this->generateSlotKey($slotStart, $slotEnd);
 
             if (isset($blockedEmployeeMap[$slotKey])) {
-                // Hay empleados bloqueados para este slot
-                $blockedIds = array_unique($blockedEmployeeMap[$slotKey]);
+                // Filtrar los bloqueos por service_id
+                $blockedIds = array_filter($blockedEmployeeMap[$slotKey], function ($blocked) use ($slot) {
+                    return $blocked['service_id'] === $slot['service_id'];
+                });
 
                 // Inicializar blocked_employee_ids si no existe
                 if (!isset($slots[$index]['blocked_employee_ids'])) {
