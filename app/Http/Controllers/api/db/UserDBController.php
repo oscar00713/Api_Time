@@ -13,11 +13,14 @@ class UserDBController extends Controller
      */
     public function index(Request $request)
     {
+        $page = $request->input('page', 1);
+        $perPage = $request->input('per_page', 10);
+
         $dbConnection = $request->get('db_connection');
         $users = DB::connection($dbConnection)
             ->table('users')
             ->select('id', 'name', 'email')  // Selecciona solo las columnas necesarias
-            ->paginate(10);  // Paginación, ajusta el número según sea necesario
+            ->paginate($perPage, ['*'], 'page', $page);  // Paginación, ajusta el número según sea necesario
 
         return response()->json($users);
     }

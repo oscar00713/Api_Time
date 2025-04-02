@@ -14,10 +14,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Mail;
 use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
+use App\Services\LimitCheckService;
 
 class SpecialistController extends Controller
 {
-
+    protected $limitCheckService;
     public $allRoles = [
         'manage_services',
         'manage_users',
@@ -50,6 +51,10 @@ class SpecialistController extends Controller
         'stock_add',
         'stock_edit'
     ];
+    public function __construct(LimitCheckService $limitCheckService)
+    {
+        $this->limitCheckService = $limitCheckService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -240,6 +245,11 @@ class SpecialistController extends Controller
             'use_room' => 'nullable|boolean',
             'user_type' => 'string|max:50',
         ]);
+        if (!$this->limitCheckService->canAddEmployee($dbConnection)) {
+            return response()->json([
+                'error' => 'No se pueden crear más empleados. Se ha alcanzado el límite máximo.'
+            ], 403);
+        }
         if (empty($validatedData['email']) || ($validatedData['user_type'] == 'fake')) {
 
             $user = DB::connection($dbConnection)->table('users')->insertGetId([

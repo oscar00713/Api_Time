@@ -137,6 +137,16 @@ create TABLE settings(
 --insertar company
 INSERT INTO settings (name, value) VALUES ('timezone', 'America/Chicago');
 
+--crear tabla de company
+create TABLE setting_hidden(
+    name VARCHAR(100) NOT NULL,
+    value VARCHAR(100) NOT NULL
+);
+
+--insertar  max_employees, max_services
+INSERT INTO setting_hidden (name, value) VALUES ('max_employees', '50');
+INSERT INTO setting_hidden (name, value) VALUES ('max_services', '50');
+
 create TABLE cash_registers (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,

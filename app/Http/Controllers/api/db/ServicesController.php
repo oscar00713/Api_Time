@@ -6,12 +6,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
+use App\Services\LimitCheckService;
 
 class ServicesController extends Controller
 {
     /**
      * Display a listing of the resource.
-     */
+     */ // Add this property to your controller class
+    protected $limitCheckService;
+
+    // Update the constructor to inject the service
+    public function __construct(LimitCheckService $limitCheckService)
+    {
+        $this->limitCheckService = $limitCheckService;
+    }
 
 
     public function index(Request $request)
@@ -155,7 +163,12 @@ class ServicesController extends Controller
             'specialists.*.commission_type' => 'required|in:none,fixed,percentage,fixedpluspercentage',
             'ranges' => 'required|array',
         ]);
-
+        // Check if we can add more services
+        if (!$this->limitCheckService->canAddService($dbConnection)) {
+            return response()->json([
+                'error' => 'No se pueden crear más servicios. Se ha alcanzado el límite máximo.'
+            ], 403);
+        }
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
@@ -216,7 +229,7 @@ class ServicesController extends Controller
                     'saturday'  => $saturday,
                     'sunday'    => $sunday,
                 ]);
-                
+
                 // Insertar los horarios para este rango (tabla times_range) SOLO UNA VEZ
                 foreach ($range['times'] as $time) {
                     $query->table('times_range')->insert([
@@ -225,7 +238,7 @@ class ServicesController extends Controller
                         'hora_fim' => $time['end'],
                     ]);
                 }
-                
+
                 // Asignar especialistas para este rango (tabla user_range)
                 foreach ($range['specialist_in_range'] as $specialistId) {
                     $query->table('user_range')->insert([
@@ -234,7 +247,7 @@ class ServicesController extends Controller
                     ]);
                 }
             }
-            
+
             DB::commit();
             return response()->json(['message' => 'Service created successfully'], 201);
         } catch (\Exception $e) {
@@ -348,9 +361,9 @@ class ServicesController extends Controller
                     ->table('rangos')
                     ->where('service_id', $id)
                     ->get();
-                
+
                 $rangeMap = []; // Para mapear los rangos existentes con los nuevos
-                
+
                 // Primero, actualizar los rangos existentes que coincidan
                 foreach ($request->ranges as $index => $rangeData) {
                     // Convertir días a formato booleano
@@ -361,7 +374,7 @@ class ServicesController extends Controller
                     $friday    = in_array(5, $rangeData['days']);
                     $saturday  = in_array(6, $rangeData['days']);
                     $sunday    = in_array(7, $rangeData['days']);
-                    
+
                     if ($index < count($existingRanges)) {
                         // Actualizar rango existente
                         $existingRange = $existingRanges[$index];
@@ -376,14 +389,14 @@ class ServicesController extends Controller
                                 'saturday'  => $saturday,
                                 'sunday'    => $sunday,
                             ]);
-                        
+
                         $rangeMap[$index] = $existingRange->id;
-                        
+
                         // Actualizar horarios (eliminar los existentes y crear nuevos)
                         $query->table('times_range')
                             ->where('range_id', $existingRange->id)
                             ->delete();
-                            
+
                         foreach ($rangeData['times'] as $time) {
                             $query->table('times_range')->insert([
                                 'range_id' => $existingRange->id,
@@ -391,12 +404,12 @@ class ServicesController extends Controller
                                 'hora_fim' => $time['end'],
                             ]);
                         }
-                        
+
                         // Actualizar especialistas (eliminar los existentes y crear nuevos)
                         $query->table('user_range')
                             ->where('range_id', $existingRange->id)
                             ->delete();
-                            
+
                         foreach ($rangeData['specialist_in_range'] as $specialistId) {
                             $query->table('user_range')->insert([
                                 'range_id' => $existingRange->id,
@@ -415,9 +428,9 @@ class ServicesController extends Controller
                             'saturday'  => $saturday,
                             'sunday'    => $sunday,
                         ]);
-                        
+
                         $rangeMap[$index] = $rangeId;
-                        
+
                         // Insertar horarios para el nuevo rango
                         foreach ($rangeData['times'] as $time) {
                             $query->table('times_range')->insert([
@@ -426,7 +439,7 @@ class ServicesController extends Controller
                                 'hora_fim' => $time['end'],
                             ]);
                         }
-                        
+
                         // Asignar especialistas para el nuevo rango
                         foreach ($rangeData['specialist_in_range'] as $specialistId) {
                             $query->table('user_range')->insert([
@@ -436,7 +449,7 @@ class ServicesController extends Controller
                         }
                     }
                 }
-                
+
                 // Eliminar rangos sobrantes si hay menos rangos en la solicitud que existentes
                 if (count($existingRanges) > count($request->ranges)) {
                     $rangesToDelete = $existingRanges->slice(count($request->ranges));
