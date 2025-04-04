@@ -254,6 +254,7 @@ CREATE TABLE appointments (
     user_comission_total DECIMAL(10, 2) DEFAULT 0.00,
     user_comission_percentage_applied NUMERIC(5,2)  DEFAULT 0.00,
     user_comission_percentage_total DECIMAL(10,2)  DEFAULT 0.00,
+    appointment_paid_invoice_id INTEGER DEFAULT 0,
     user_comission_fixed_total DECIMAL(10, 2)  DEFAULT 0.00,
     appointment_price DECIMAL(10, 2) DEFAULT 0.00,
     paid BOOLEAN DEFAULT false,

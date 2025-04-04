@@ -157,8 +157,8 @@ class AppoimentCRUDController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'client_id' => 'required|integer',
-            'appointment_price' => 'required|numeric',
-            'appointment_paid' => 'required|boolean',
+            'appointment_price' => 'nullable|numeric',
+            'appointment_paid' => 'nulllable|boolean',
             'appointment_paid_invoice_id' => 'nullable|integer',
             'appointments' => 'required|array',
             'appointments.*.start' => 'required|date',
@@ -243,7 +243,7 @@ class AppoimentCRUDController extends Controller
                     'appointment_price' => $request->appointment_price,
                     'paid' => $request->appointment_paid,
                     'paid_date' => $request->appointment_paid ? Carbon::now() : null,
-                    'appointment_paid_invoice_id' => $request->appointment_paid_invoice_id,
+                    // 'appointment_paid_invoice_id' => $request->appointment_paid_invoice_id,
                 ];
 
                 // Insert each appointment

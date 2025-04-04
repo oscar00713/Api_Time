@@ -28,8 +28,23 @@ class AppoimentSuggestionsController extends Controller
                 'group_consecutives' => 'boolean',
                 'calendar_date' => 'date|nullable',
                 'calendar_time' => 'date_format:H:i|nullable',
-                'include_taken' => 'boolean'
+                'include_taken' => 'boolean',
+                'appointment_duration_minutes' => 'nullable' // Modified to accept any type
             ]);
+            
+            // Convert appointment_duration_minutes to array format if it's a string
+            if (isset($validated['appointment_duration_minutes']) && !is_array($validated['appointment_duration_minutes'])) {
+                // If it's a single value, apply it to all services
+                $duration = (int)$validated['appointment_duration_minutes'];
+                $durationArray = [];
+                
+                foreach ($validated['service_id'] as $serviceId) {
+                    $durationArray[$serviceId] = $duration;
+                }
+                
+                $validated['appointment_duration_minutes'] = $durationArray;
+            }
+            
             // Primero configuramos la conexión
             $connection = $request->get('db_connection');
             if (!$connection) {
@@ -59,7 +74,7 @@ class AppoimentSuggestionsController extends Controller
             }
 
             // Resto del código...
-            $totalDuration = $this->getTotalDuration($query, $validated['service_id']);
+            $totalDuration = $this->getTotalDuration($query, $validated['service_id'], $validated['appointment_duration_minutes'] ?? null);
             $employees = $this->getValidEmployees($query, $validated);
 
             if ($employees->isEmpty()) {
@@ -82,12 +97,23 @@ class AppoimentSuggestionsController extends Controller
 
     // ================ Helper Methods ================ //
 
-    private function getTotalDuration($query, array $serviceIds): array
+    private function getTotalDuration($query, array $serviceIds, ?array $customDurations = null): array
     {
-        return $query->table('services')
+        $durations = $query->table('services')
             ->whereIn('id', $serviceIds)
             ->pluck('appointment_duration_minutes', 'id')
             ->toArray();
+        
+        // Override with custom durations if provided
+        if ($customDurations) {
+            foreach ($serviceIds as $serviceId) {
+                if (isset($customDurations[$serviceId]) && $customDurations[$serviceId] > 0) {
+                    $durations[$serviceId] = $customDurations[$serviceId];
+                }
+            }
+        }
+        
+        return $durations;
     }
 
     private function getValidEmployees($query, array $validated): \Illuminate\Support\Collection
@@ -259,7 +285,7 @@ class AppoimentSuggestionsController extends Controller
                 'end' => $firstSlotEnd->toDateTimeString(),
                 'employee_ids' => $schedules->pluck('user_id')->unique()->toArray(),
                 'service_id' => $serviceId,
-                'is_out_of_schedule' => true // Marcamos como fuera de horario por defecto
+                'is_out_of_schedule' => true // Siempre marcamos el primer slot como fuera de horario
             ];
             $firstSlotAdded = true;
         }
@@ -294,23 +320,23 @@ class AppoimentSuggestionsController extends Controller
                 $workStart = Carbon::parse($schedule->hora_inicio)->setDateFrom($date);
                 $workEnd = Carbon::parse($schedule->hora_fim)->setDateFrom($date);
 
-                // Verificar si el primer slot está dentro del horario laboral
-                if ($validated['dayAndTime'] === 'now' && $firstSlotAdded && $date->isToday()) {
-                    $firstSlotStartTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['start']);
-                    $firstSlotEndTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['end']);
-
-                    // Actualizar is_out_of_schedule si el slot está dentro del horario
-                    if ($firstSlotStartTime >= $workStart && $firstSlotEndTime <= $workEnd) {
-                        $timeGroups[array_key_first($timeGroups)]['is_out_of_schedule'] = false;
-                    }
-                }
-
                 // Generar slots regulares durante el día laboral
                 $slotStart = $workStart->copy();
 
                 // Si es hoy y estamos en modo "now", comenzar desde la hora actual
                 if ($date->isToday() && $validated['dayAndTime'] === 'now' && $now->gt($slotStart)) {
-                    $slotStart = $now->copy()->ceil($duration);
+                    // Ajustamos para que el segundo slot comience en el siguiente intervalo regular
+                    // después del primer slot especial
+                    if ($firstSlotAdded) {
+                        $firstSlotEndTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['end']);
+                        // Encontrar el siguiente intervalo regular después del primer slot
+                        $slotStart = $workStart->copy();
+                        while ($slotStart < $firstSlotEndTime) {
+                            $slotStart->addMinutes($duration);
+                        }
+                    } else {
+                        $slotStart = $now->copy()->ceil($duration);
+                    }
                 }
 
                 while ($slotStart->copy()->addMinutes($duration) <= $workEnd) {
@@ -322,7 +348,8 @@ class AppoimentSuggestionsController extends Controller
                         $firstSlotStartTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['start']);
                         $firstSlotEndTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['end']);
 
-                        if ($slotStart->eq($firstSlotStartTime)) {
+                        if ($slotStart->eq($firstSlotStartTime) || 
+                            ($slotStart < $firstSlotEndTime && $slotEnd > $firstSlotStartTime)) {
                             $skipThisSlot = true;
                         }
                     }
