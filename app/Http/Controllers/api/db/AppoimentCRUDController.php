@@ -157,8 +157,8 @@ class AppoimentCRUDController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'client_id' => 'required|integer',
-            'appointment_price' => 'nullable|numeric',
-            'appointment_paid' => 'nulllable|boolean',
+            'appointment_price' => 'nullable|numeric', // Corregido de 'nulllable' a 'nullable'
+            'appointment_paid' => 'nullable|boolean', // Corregido de 'nulllable' a 'nullable'
             'appointment_paid_invoice_id' => 'nullable|integer',
             'appointments' => 'required|array',
             'appointments.*.start' => 'required|date',

@@ -267,8 +267,66 @@ CREATE TABLE appointments (
     CONSTRAINT fk_users FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
 ) PARTITION BY RANGE (start_date);
 
+CREATE EXTENSION IF NOT EXISTS dblink;
 
 CREATE TABLE appointments_default PARTITION OF appointments DEFAULT;
+
+-- CREATE OR REPLACE FUNCTION create_partition_and_insert()
+-- RETURNS TRIGGER AS $$
+-- DECLARE
+--     partition_name TEXT;
+--     start_date TIMESTAMP;
+--     end_date TIMESTAMP;
+-- BEGIN
+--     partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
+--     start_date := DATE_TRUNC('month', NEW.start_date);
+--     end_date := start_date + INTERVAL '1 month';
+--     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = partition_name) THEN
+--         EXECUTE format('
+--             CREATE TABLE %I PARTITION OF appointments
+--             FOR VALUES FROM (%L) TO (%L)',
+--             partition_name, start_date, end_date);
+--         EXECUTE format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)', partition_name, partition_name);
+--         EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
+--         EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
+--     END IF;
+--     EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
+--     RETURN NULL;
+-- END;
+-- $$ LANGUAGE plpgsql;
+
+-- CREATE OR REPLACE FUNCTION create_partition_and_insert()
+-- RETURNS TRIGGER AS $$
+-- DECLARE
+--     partition_name TEXT;
+--     start_date TIMESTAMP;
+--     end_date TIMESTAMP;
+-- BEGIN
+--     partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
+--     start_date := DATE_TRUNC('month', NEW.start_date);
+--     end_date := start_date + INTERVAL '1 month';
+
+--     -- Cambiamos la forma de verificar si la tabla existe
+--     IF NOT EXISTS (
+--         SELECT 1
+--         FROM pg_catalog.pg_class c
+--         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+--         WHERE c.relname = partition_name
+--         AND n.nspname = current_schema()
+--     ) THEN
+--         EXECUTE format('
+--             CREATE TABLE %I PARTITION OF appointments
+--             FOR VALUES FROM (%L) TO (%L)',
+--             partition_name, start_date, end_date);
+--         EXECUTE format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)', partition_name, partition_name);
+--         EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
+--         EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
+--     END IF;
+
+--     EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
+--     RETURN NULL;
+-- END;
+-- $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION create_partition_and_insert()
 RETURNS TRIGGER AS $$
@@ -276,19 +334,46 @@ DECLARE
     partition_name TEXT;
     start_date TIMESTAMP;
     end_date TIMESTAMP;
+    dblink_conn TEXT;
 BEGIN
-    partition_name = 'z_appo_' + TO_CHAR(NEW.start_date, 'YYYY_MM');
+    partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
     start_date := DATE_TRUNC('month', NEW.start_date);
     end_date := start_date + INTERVAL '1 month';
-    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = partition_name) THEN
-        EXECUTE format('
-            CREATE TABLE %I PARTITION OF appointments
-            FOR VALUES FROM (%L) TO (%L)',
-            partition_name, start_date, end_date);
-        EXECUTE format('CREATE INDEX idx_user_id_%I ON %I(user_user_id)', partition_name, partition_name);
-        EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
-        EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
+
+    -- Solo si la partición no existe, la creamos mediante dblink
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = partition_name
+          AND n.nspname = current_schema()
+    ) THEN
+        -- Preparamos la cadena de conexión. Usamos current_database() y current_user para reutilizar la conexión actual
+        dblink_conn := 'dbname=' || current_database() || ' user=' || current_user;
+
+        PERFORM dblink_exec(
+            dblink_conn,
+            format('CREATE TABLE %I PARTITION OF appointments FOR VALUES FROM (%L) TO (%L)',
+                   partition_name, start_date, end_date)
+        );
+        PERFORM dblink_exec(
+            dblink_conn,
+            format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)',
+                   partition_name, partition_name)
+        );
+        PERFORM dblink_exec(
+            dblink_conn,
+            format('CREATE INDEX idx_client_id_%I ON %I(client_id)',
+                   partition_name, partition_name)
+        );
+        PERFORM dblink_exec(
+            dblink_conn,
+            format('CREATE INDEX idx_service_id_%I ON %I(service_id)',
+                   partition_name, partition_name)
+        );
     END IF;
+
+    -- Realiza la inserción en la partición correspondiente
     EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
     RETURN NULL;
 END;
