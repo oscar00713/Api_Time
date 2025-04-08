@@ -6,16 +6,19 @@ use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use App\Services\AuthorizationService;
 use Illuminate\Http\Request;
+use App\Services\PartitionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class AppoimentCRUDController extends Controller
 {
     protected $authService;
+    protected $partitionService;
 
-    public function __construct(AuthorizationService $authService)
+    public function __construct(AuthorizationService $authService, PartitionService $partitionService)
     {
         $this->authService = $authService;
+        $this->partitionService = $partitionService;
     }
 
     public function index(Request $request)
@@ -176,6 +179,7 @@ class AppoimentCRUDController extends Controller
         $query = DB::connection($dbConnection);
 
         try {
+            DB::beginTransaction();
             foreach ($request->appointments as $appointment) {
                 // Verificar permisos para cada empleado
                 if (!$this->authService->canAssignAppointment($user, $appointment['selectedEmployee'], $dbConnection)) {
@@ -235,6 +239,7 @@ class AppoimentCRUDController extends Controller
                     'status' => 0, // Assuming default status
                     'start_date' => $appointment['start'],
                     'end_date' => $appointment['end'],
+                    'appointment_date' => date('Y-m-d', strtotime($appointment['start'])),
                     'user_comission_applied' => $commissionType,
                     'user_comission_percentage_applied' => $commissionPercentage,
                     'user_comission_percentage_total' => $commissionPercentageTotal,
@@ -245,7 +250,9 @@ class AppoimentCRUDController extends Controller
                     'paid_date' => $request->appointment_paid ? Carbon::now() : null,
                     // 'appointment_paid_invoice_id' => $request->appointment_paid_invoice_id,
                 ];
-
+                // En el método store
+                $year = date('Y', strtotime($appointment['start']));
+                $this->partitionService->ensureYearPartitionExists($year, $dbConnection);
                 // Insert each appointment
                 $query->table('appointments')->insert($appointmentData);
             }
@@ -399,17 +406,18 @@ class AppoimentCRUDController extends Controller
                 $updateData['user_comission_total'] = $commissionTotal;
             }
 
-            // If start_date is changing, we need to delete and reinsert
+            // En el método update, cuando creas un nuevo registro
             if ($request->has('start_date')) {
-                // Create new appointment with updated data
-                $newAppointmentData = array_merge((array)$appointment, $updateData);
-                $newAppointmentData['start_date'] = $request->start_date;
-
-                // Delete old appointment
-                $query->table('appointments')->where('start_date', $id)->delete();
-
-                // Insert new appointment
-                $query->table('appointments')->insert($newAppointmentData);
+            // Create new appointment with updated data
+            $newAppointmentData = array_merge((array)$appointment, $updateData);
+            $newAppointmentData['start_date'] = $request->start_date;
+            $newAppointmentData['appointment_date'] = date('Y-m-d', strtotime($request->start_date)); // Añadir esta línea
+            
+            // Delete old appointment
+            $query->table('appointments')->where('start_date', $id)->delete();
+            
+            // Insert new appointment
+            $query->table('appointments')->insert($newAppointmentData);
 
                 return response()->json([
                     'message' => 'Cita actualizada exitosamente',

@@ -246,7 +246,8 @@ CREATE TABLE block_appointments(
     CONSTRAINT fk_employeeid FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE TABLE appointments (
-    id INTEGER,
+    id BIGSERIAL,
+    appointment_date DATE NOT NULL,
     client_id INTEGER NOT NULL,
     service_id INTEGER NOT NULL,
     employee_id INTEGER NOT NULL,
@@ -260,73 +261,75 @@ CREATE TABLE appointments (
     paid BOOLEAN DEFAULT false,
     paid_date TIMESTAMP,
     status INTEGER DEFAULT 0,
-    start_date TIMESTAMP NOT NULL PRIMARY KEY,
+    start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
+    PRIMARY KEY (appointment_date, start_date),  -- Incluir appointment_date en la clave primaria
     CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id),
     CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
     CONSTRAINT fk_users FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
-) PARTITION BY RANGE (start_date);
-
--- CREATE EXTENSION IF NOT EXISTS dblink;
+) PARTITION BY RANGE (appointment_date);
 
 CREATE TABLE appointments_default PARTITION OF appointments DEFAULT;
+-- CREATE EXTENSION IF NOT EXISTS dblink;
 
-CREATE OR REPLACE FUNCTION create_partition_and_insert()
-RETURNS TRIGGER AS $$
-DECLARE
-    partition_name TEXT;
-    start_date TIMESTAMP;
-    end_date TIMESTAMP;
-BEGIN
-    partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
-    start_date := DATE_TRUNC('month', NEW.start_date);
-    end_date := start_date + INTERVAL '1 month';
-    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = partition_name) THEN
-        EXECUTE format('
-            CREATE TABLE %I PARTITION OF appointments
-            FOR VALUES FROM (%L) TO (%L)',
-            partition_name, start_date, end_date);
-        EXECUTE format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)', partition_name, partition_name);
-        EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
-        EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
-    END IF;
-    EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
+-- CREATE TABLE appointments_default PARTITION OF appointments DEFAULT;
 
-CREATE OR REPLACE FUNCTION create_partition_and_insert()
-RETURNS TRIGGER AS $$
-DECLARE
-    partition_name TEXT;
-    start_date TIMESTAMP;
-    end_date TIMESTAMP;
-BEGIN
-    partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
-    start_date := DATE_TRUNC('month', NEW.start_date);
-    end_date := start_date + INTERVAL '1 month';
+-- CREATE OR REPLACE FUNCTION create_partition_and_insert()
+-- RETURNS TRIGGER AS $$
+-- DECLARE
+--     partition_name TEXT;
+--     start_date TIMESTAMP;
+--     end_date TIMESTAMP;
+-- BEGIN
+--     partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
+--     start_date := DATE_TRUNC('month', NEW.start_date);
+--     end_date := start_date + INTERVAL '1 month';
+--     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = partition_name) THEN
+--         EXECUTE format('
+--             CREATE TABLE %I PARTITION OF appointments
+--             FOR VALUES FROM (%L) TO (%L)',
+--             partition_name, start_date, end_date);
+--         EXECUTE format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)', partition_name, partition_name);
+--         EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
+--         EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
+--     END IF;
+--     EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
+--     RETURN NULL;
+-- END;
+-- $$ LANGUAGE plpgsql;
 
-    -- Cambiamos la forma de verificar si la tabla existe
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_catalog.pg_class c
-        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-        WHERE c.relname = partition_name
-        AND n.nspname = current_schema()
-    ) THEN
-        EXECUTE format('
-            CREATE TABLE %I PARTITION OF appointments
-            FOR VALUES FROM (%L) TO (%L)',
-            partition_name, start_date, end_date);
-        EXECUTE format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)', partition_name, partition_name);
-        EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
-        EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
-    END IF;
+-- CREATE OR REPLACE FUNCTION create_partition_and_insert()
+-- RETURNS TRIGGER AS $$
+-- DECLARE
+--     partition_name TEXT;
+--     start_date TIMESTAMP;
+--     end_date TIMESTAMP;
+-- BEGIN
+--     partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
+--     start_date := DATE_TRUNC('month', NEW.start_date);
+--     end_date := start_date + INTERVAL '1 month';
 
-    EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
+--     -- Cambiamos la forma de verificar si la tabla existe
+--     IF NOT EXISTS (
+--         SELECT 1
+--         FROM pg_catalog.pg_class c
+--         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+--         WHERE c.relname = partition_name
+--         AND n.nspname = current_schema()
+--     ) THEN
+--         EXECUTE format('
+--             CREATE TABLE %I PARTITION OF appointments
+--             FOR VALUES FROM (%L) TO (%L)',
+--             partition_name, start_date, end_date);
+--         EXECUTE format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)', partition_name, partition_name);
+--         EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
+--         EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
+--     END IF;
+
+--     EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
+--     RETURN NULL;
+-- END;
+-- $$ LANGUAGE plpgsql;
 
 -- CREATE OR REPLACE FUNCTION create_partition_and_insert()
 -- RETURNS TRIGGER AS $$
@@ -379,6 +382,4 @@ $$ LANGUAGE plpgsql;
 -- END;
 -- $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER insert_appointments_trigger
-BEFORE INSERT ON appointments_default
-FOR EACH ROW EXECUTE FUNCTION create_partition_and_insert();
+--
