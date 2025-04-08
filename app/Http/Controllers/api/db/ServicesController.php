@@ -155,7 +155,7 @@ class ServicesController extends Controller
         $query = DB::connection($dbConnection);
 
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:services,name',
+            'name' => 'required|string|max:255',
             'appointment_duration_minutes' => 'required|integer',
             'service_price' => 'required|numeric',
             'active' => 'required|boolean',
@@ -287,7 +287,7 @@ class ServicesController extends Controller
 
         // Validación más flexible
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255|unique:tabla,name,' . $id,
+            'name' => 'sometimes|string|max:255',
             'appointment_duration_minutes' => 'sometimes|integer',
             'service_price' => 'sometimes|numeric',
             'active' => 'sometimes|boolean',
