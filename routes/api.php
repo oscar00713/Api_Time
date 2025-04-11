@@ -56,5 +56,5 @@ Route::middleware('company')->group(function () {
     Route::post('/blockAppointment', [BlockAppointmentController::class, 'manageBlock']);
 
     Route::get('/settings', [SettingsController::class, 'getSettings']);
-    Route::post('/settings', [SettingsController::class, 'updateSettings']);
+    Route::post('/settings', [SettingsController::class, 'updateSetting']);
 });
