@@ -191,15 +191,23 @@ class AppoimentCRUDController extends Controller
                     ], 403);
                 }
 
+                // In the store method, modify the specialist availability check
                 // Verificar si el especialista está disponible
                 $existingAppointment = $query->table('appointments')
                     ->where('employee_id', $appointment['selectedEmployee'])
                     ->where(function ($q) use ($appointment) {
-                        $q->whereBetween('start_date', [$appointment['start'], $appointment['end']])
-                            ->orWhereBetween('end_date', [$appointment['start'], $appointment['end']]);
+                        // Add 3-minute tolerance for consecutive appointments
+                        $startWithTolerance = Carbon::parse($appointment['start'])->addMinutes(3);
+                        $endWithTolerance = Carbon::parse($appointment['end'])->subMinutes(3);
+                        
+                        // Only consider it an overlap if the appointment significantly overlaps
+                        $q->where(function($innerQ) use ($appointment, $startWithTolerance, $endWithTolerance) {
+                            $innerQ->where('start_date', '<', $endWithTolerance)
+                                  ->where('end_date', '>', $startWithTolerance);
+                        });
                     })
                     ->first();
-
+                
                 if ($existingAppointment) {
                     return response()->json(['error' => 'El especialista ya tiene una cita en ese horario'], 409);
                 }
@@ -337,12 +345,20 @@ class AppoimentCRUDController extends Controller
                 $endDate = $request->end_date ?? $appointment->end_date;
                 $employeeId = $request->employee_id ?? $appointment->employee_id;
 
+                // In the update method, modify the availability check
                 $existingAppointment = $query->table('appointments')
                     ->where('start_date', '!=', $id)
                     ->where('employee_id', $employeeId)
                     ->where(function ($q) use ($startDate, $endDate) {
-                        $q->whereBetween('start_date', [$startDate, $endDate])
-                            ->orWhereBetween('end_date', [$startDate, $endDate]);
+                        // Add 3-minute tolerance for consecutive appointments
+                        $startWithTolerance = Carbon::parse($startDate)->addMinutes(3);
+                        $endWithTolerance = Carbon::parse($endDate)->subMinutes(3);
+                        
+                        // Only consider it an overlap if the appointment significantly overlaps
+                        $q->where(function($innerQ) use ($startDate, $endDate, $startWithTolerance, $endWithTolerance) {
+                            $innerQ->where('start_date', '<', $endWithTolerance)
+                                  ->where('end_date', '>', $startWithTolerance);
+                        });
                     })
                     ->first();
 
