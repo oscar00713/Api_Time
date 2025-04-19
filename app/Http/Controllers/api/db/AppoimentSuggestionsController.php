@@ -31,20 +31,20 @@ class AppoimentSuggestionsController extends Controller
                 'include_taken' => 'boolean',
                 'appointment_duration_minutes' => 'nullable' // Modified to accept any type
             ]);
-            
+
             // Convert appointment_duration_minutes to array format if it's a string
             if (isset($validated['appointment_duration_minutes']) && !is_array($validated['appointment_duration_minutes'])) {
                 // If it's a single value, apply it to all services
                 $duration = (int)$validated['appointment_duration_minutes'];
                 $durationArray = [];
-                
+
                 foreach ($validated['service_id'] as $serviceId) {
                     $durationArray[$serviceId] = $duration;
                 }
-                
+
                 $validated['appointment_duration_minutes'] = $durationArray;
             }
-            
+
             // Primero configuramos la conexión
             $connection = $request->get('db_connection');
             if (!$connection) {
@@ -103,7 +103,7 @@ class AppoimentSuggestionsController extends Controller
             ->whereIn('id', $serviceIds)
             ->pluck('appointment_duration_minutes', 'id')
             ->toArray();
-        
+
         // Override with custom durations if provided
         if ($customDurations) {
             foreach ($serviceIds as $serviceId) {
@@ -112,7 +112,7 @@ class AppoimentSuggestionsController extends Controller
                 }
             }
         }
-        
+
         return $durations;
     }
 
@@ -137,44 +137,21 @@ class AppoimentSuggestionsController extends Controller
         $employeeIds = $employees->pluck('id');
 
         $timezone = config('app.timezone');
-        // Asegúrate de que las fechas estén en el formato correcto
         $startDate = Carbon::parse($period['start'])->startOfDay()->format('Y-m-d H:i:s');
         $endDate = Carbon::parse($period['end'])->addDays(14)->endOfDay()->format('Y-m-d H:i:s');
 
-        // return response()->json([
-        //     'startDate' => $startDate,
-        //     'endDate' => $endDate,
-        // ]);
-
-        // Corregimos la consulta para usar start_date en lugar de date
         $existingAppointments = $query->table('appointments')
             ->whereIn('employee_id', $employeeIds)
+            ->where('status', '!=', 4) // Ignorar turnos cancelados
             ->whereBetween('start_date', [$startDate, $endDate])
             ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']);
 
-        // $start = Carbon::parse($period['start'])
-        //     ->setTimezone($timezone)
-        //     ->format('Y-m-d H:i:s');
-
-        // $end = Carbon::parse($period['end'])
-        //     ->setTimezone($timezone)
-        //     ->format('Y-m-d H:i:s');
-
-        // return response()->json([
-        //     'start' => $start,
-        //     'end' => $end,
-        //     'period' => CarbonPeriod::create($start, $end)
-        // ]);
-        // Get blocked appointments - Mejoramos la consulta para asegurar que obtenemos todos los bloqueos
         $blockedAppointments = $query->table('block_appointments')
             ->where(function ($q) use ($startDate, $endDate, $employeeIds) {
                 $q->whereBetween('datetime_start', [$startDate, $endDate])
                     ->whereIn('employee_id', $employeeIds);
             })
             ->get(['id', 'datetime_start', 'employee_id', 'service_id']);
-        // Añadimos la consulta para depuración
-        // Añadimos un log para depuración
-
 
         $schedules = $this->getEmployeeSchedules($query, $employeeIds, $validated['service_id']);
 
@@ -187,17 +164,14 @@ class AppoimentSuggestionsController extends Controller
             $allSlots = array_merge($allSlots, $slots);
         }
 
-        // Si se solicita incluir los turnos tomados
+        // Only include taken slots if include_taken is true
+        if (!empty($validated['include_taken'])) {
+            $allSlots = $this->addTakenSlotsInfo($allSlots, $existingAppointments, $blockedAppointments);
+        }
 
-        $allSlots = $this->addTakenSlotsInfo($allSlots, $existingAppointments, $blockedAppointments);
-
-
-        // Ordenar todos los slots por fecha
         usort($allSlots, function ($a, $b) {
             return strcmp($a['start'], $b['start']);
         });
-        // return response()->json($allSlots);
-        // Si se solicita agrupar los turnos consecutivos
 
         return $allSlots;
     }
@@ -219,9 +193,9 @@ class AppoimentSuggestionsController extends Controller
             'next_month' => $now->copy()->addMonth()->startOfDay(),
             '3months' => $now->copy()->addMonths(3)->startOfDay(),
             '6months' => $now->copy()->addMonths(6)->startOfDay(),
-            'morning' => $now->copy()->setTime(6, 0),
-            'afternoon' => $now->copy()->setTime(12, 0),
-            'night' => $now->copy()->setTime(18, 0),
+            'morning', 'in the morning' => $now->copy()->setTime(6, 0),
+            'afternoon', 'in the afternoon' => $now->copy()->setTime(12, 0),
+            'night', 'in the night' => $now->copy()->setTime(18, 0),
             default => Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])
         };
 
@@ -235,9 +209,9 @@ class AppoimentSuggestionsController extends Controller
             'next_month' => $now->copy()->addMonth()->endOfDay(),
             '3months' => $now->copy()->addMonths(3)->endOfDay(),
             '6months' => $now->copy()->addMonths(6)->endOfDay(),
-            'morning' => $now->copy()->setTime(12, 0),
-            'afternoon' => $now->copy()->setTime(18, 0),
-            'night' => $now->copy()->setTime(23, 59),
+            'morning', 'in the morning' => $now->copy()->setTime(12, 0),
+            'afternoon', 'in the afternoon' => $now->copy()->setTime(18, 0),
+            'night', 'in the night' => $now->copy()->setTime(23, 59),
             default => Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])->addDay()
         };
 
@@ -348,8 +322,10 @@ class AppoimentSuggestionsController extends Controller
                         $firstSlotStartTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['start']);
                         $firstSlotEndTime = Carbon::parse($timeGroups[array_key_first($timeGroups)]['end']);
 
-                        if ($slotStart->eq($firstSlotStartTime) || 
-                            ($slotStart < $firstSlotEndTime && $slotEnd > $firstSlotStartTime)) {
+                        if (
+                            $slotStart->eq($firstSlotStartTime) ||
+                            ($slotStart < $firstSlotEndTime && $slotEnd > $firstSlotStartTime)
+                        ) {
                             $skipThisSlot = true;
                         }
                     }
@@ -416,7 +392,7 @@ class AppoimentSuggestionsController extends Controller
 
     private function isSlotOccupied(Carbon $start, Carbon $end, int $employeeId, $appointments): bool
     {
-        return $appointments->where('user_id', $employeeId)
+        return $appointments->where('user_id', $employeeId)->where('status', '!=', 4)
             ->contains(function ($app) use ($start, $end) {
                 return $start < Carbon::parse($app->end_date) && $end > Carbon::parse($app->start_date);
             });

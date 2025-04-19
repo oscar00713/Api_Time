@@ -131,11 +131,16 @@ CREATE TABLE commissions (
 --crear tabla de company
 create TABLE settings(
     name VARCHAR(100) NOT NULL,
-    value VARCHAR(100) NOT NULL
+    value VARCHAR(100) NOT NULL,
+
 );
 
 --insertar company
-INSERT INTO settings (name, value) VALUES ('timezone', 'America/Chicago');
+INSERT INTO settings (name, value) VALUES   ('timezone', 'America/Chicago'),
+  ('date_limit', 'true'),
+  ('date_limit_type', 'specific'),
+  ('appointment_price', '0'),
+  ('date_limit_value', '2025-05-01');
 
 --crear tabla de company
 create TABLE setting_hidden(
@@ -260,7 +265,7 @@ CREATE TABLE appointments (
     appointment_price DECIMAL(10, 2) DEFAULT 0.00,
     paid BOOLEAN DEFAULT false,
     paid_date TIMESTAMP,
-    status INTEGER DEFAULT 0,
+    status INTEGER DEFAULT 0,--"pending" =0, "checked_in"=1, "in_room"=2, "checked_out"=3, "cancelled"=4
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
     PRIMARY KEY (appointment_date, start_date),  -- Incluir appointment_date en la clave primaria
