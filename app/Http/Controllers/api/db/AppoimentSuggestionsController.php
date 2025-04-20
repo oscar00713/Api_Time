@@ -81,6 +81,145 @@ class AppoimentSuggestionsController extends Controller
                 return response()->json(['message' => 'No hay empleados disponibles'], 404);
             }
 
+            // =================== NUEVO BLOQUE ===================
+            // Leer settings para date_limit
+            $settings = $query->table('settings')->pluck('value', 'name')->toArray();
+            $dateLimitEnabled = isset($settings['date_limit']) && ($settings['date_limit'] === 'true' || $settings['date_limit'] === 1 || $settings['date_limit'] === true);
+            $dateLimitType = $settings['date_limit_type'] ?? null;
+            $dateLimitValue = $settings['date_limit_value'] ?? null;
+
+            $minSlots = 30;
+            $maxTries = 10;
+            $allSlots = [];
+            $period = $this->getDateRange($validated);
+
+            // Si hay date_limit y está activo, calcular el límite
+            $limitEnd = null;
+            $limitEnd = null;
+            if ($dateLimitEnabled) {
+                if ($dateLimitType === 'specific' && $dateLimitValue) {
+                    // Si es una fecha específica, parsear como fecha
+                    $limitEnd = \Carbon\Carbon::parse($dateLimitValue);
+                } elseif ($dateLimitType === 'automatic' && is_numeric($dateLimitValue)) {
+                    // Si es automático y es un número de días, sumar días a la fecha actual
+                    $limitEnd = \Carbon\Carbon::now()->addDays((int)$dateLimitValue);
+                }
+            }
+
+            // Si hay date_limit y el rango solicitado excede el límite, no mostrar nada
+            if ($dateLimitEnabled && $limitEnd && $period['start']->gt($limitEnd)) {
+                return response()->json([
+                    'suggestions' => [],
+                    'message' => 'No hay turnos disponibles en el rango permitido por la configuración.',
+                    'time_label' => $validated['dayAndTime']
+                ]);
+            }
+
+            $currentStart = $period['start']->copy();
+            $currentEnd = $period['end']->copy();
+            $foundEnough = false;
+            $try = 0;
+
+            while ($try < $maxTries && !$foundEnough) {
+                // Si hay date_limit y el siguiente rango excede el límite, cortar el rango
+                if ($dateLimitEnabled && $limitEnd && $currentEnd->gt($limitEnd)) {
+                    $currentEnd = $limitEnd->copy();
+                }
+
+                $periodTry = [
+                    'start' => $currentStart,
+                    'end' => $currentEnd,
+                    'period' => \Carbon\CarbonPeriod::create($currentStart, $currentEnd)
+                ];
+
+                $slots = [];
+                foreach ($validated['service_id'] as $serviceId) {
+                    $duration = $totalDuration[$serviceId];
+                    $serviceSchedules = $this->getEmployeeSchedules($query, $employees->pluck('id'), [$serviceId]);
+                    $slots = array_merge($slots, $this->calculateAvailableSlots(
+                        $periodTry,
+                        $duration,
+                        $serviceSchedules,
+                        $query->table('appointments')
+                            ->whereIn('employee_id', $employees->pluck('id'))
+                            ->where('status', '!=', 4)
+                            ->whereBetween('start_date', [$currentStart, $currentEnd])
+                            ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']),
+                        $validated,
+                        $serviceId
+                    ));
+                }
+
+                $allSlots = array_merge($allSlots, $slots);
+                $allSlots = array_unique($allSlots, SORT_REGULAR);
+
+                if (count($allSlots) >= $minSlots) {
+                    $foundEnough = true;
+                } else {
+                    // Extiende el rango para el siguiente intento
+                    $currentStart = $currentEnd->copy()->addSecond();
+                    $currentEnd = $currentEnd->copy()->addDays(1);
+                    $try++;
+                    // Si hay date_limit y el siguiente rango excede el límite, cortar el rango
+                    if ($dateLimitEnabled && $limitEnd && $currentEnd->gt($limitEnd)) {
+                        $currentEnd = $limitEnd->copy();
+                    }
+                    // Si ya llegamos al límite, salir
+                    if ($dateLimitEnabled && $limitEnd && $currentStart->gt($limitEnd)) {
+                        break;
+                    }
+                }
+            }
+
+            // Si después de los intentos no hay suficientes slots, buscar el próximo turno disponible
+            if (count($allSlots) < $minSlots) {
+                // Buscar el próximo slot disponible después del rango actual
+                $nextSlot = null;
+                $searchStart = $currentEnd->copy()->addSecond();
+                $searchEnd = $searchStart->copy()->addDays(30); // Buscar hasta 30 días más
+                if ($dateLimitEnabled && $limitEnd && $searchEnd->gt($limitEnd)) {
+                    $searchEnd = $limitEnd->copy();
+                }
+                $periodNext = [
+                    'start' => $searchStart,
+                    'end' => $searchEnd,
+                    'period' => \Carbon\CarbonPeriod::create($searchStart, $searchEnd)
+                ];
+                foreach ($validated['service_id'] as $serviceId) {
+                    $duration = $totalDuration[$serviceId];
+                    $serviceSchedules = $this->getEmployeeSchedules($query, $employees->pluck('id'), [$serviceId]);
+                    $slotsNext = $this->calculateAvailableSlots(
+                        $periodNext,
+                        $duration,
+                        $serviceSchedules,
+                        $query->table('appointments')
+                            ->whereIn('employee_id', $employees->pluck('id'))
+                            ->where('status', '!=', 4)
+                            ->whereBetween('start_date', [$searchStart, $searchEnd])
+                            ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']),
+                        $validated,
+                        $serviceId
+                    );
+                    if (!empty($slotsNext)) {
+                        $nextSlot = $slotsNext[0];
+                        break;
+                    }
+                }
+
+                $msg = 'No hay suficientes turnos disponibles en el rango solicitado.';
+                if ($nextSlot) {
+                    $msg .= ' El próximo turno disponible es el ' . $nextSlot['start'];
+                } else {
+                    $msg .= ' No hay turnos disponibles próximamente.';
+                }
+
+                return response()->json([
+                    'suggestions' => $allSlots,
+                    'message' => $msg,
+                    'time_label' => $validated['dayAndTime']
+                ]);
+            }
+
             $timeSlots = $this->generateTimeSlots($query, $employees, $totalDuration, $validated);
 
             return response()->json([
@@ -196,7 +335,11 @@ class AppoimentSuggestionsController extends Controller
             'morning', 'in the morning' => $now->copy()->setTime(6, 0),
             'afternoon', 'in the afternoon' => $now->copy()->setTime(12, 0),
             'night', 'in the night' => $now->copy()->setTime(18, 0),
-            default => Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])
+            default => (
+                (!empty($validated['calendar_date']) && !empty($validated['calendar_time']))
+                ? Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])
+                : $now->copy()
+            )
         };
 
         // Determinar fecha de fin según el parámetro dayAndTime
@@ -212,7 +355,11 @@ class AppoimentSuggestionsController extends Controller
             'morning', 'in the morning' => $now->copy()->setTime(12, 0),
             'afternoon', 'in the afternoon' => $now->copy()->setTime(18, 0),
             'night', 'in the night' => $now->copy()->setTime(23, 59),
-            default => Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])->addDay()
+            default => (
+                (!empty($validated['calendar_date']) && !empty($validated['calendar_time']))
+                ? Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])->addDay()
+                : $now->copy()->addDay()
+            )
         };
 
         return [
