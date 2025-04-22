@@ -245,7 +245,7 @@ CREATE TABLE vacaciones (
     type VARCHAR(100) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
-)
+);
 
 CREATE TABLE block_appointments(
     id SERIAL PRIMARY KEY,
