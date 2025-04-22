@@ -131,8 +131,7 @@ CREATE TABLE commissions (
 --crear tabla de company
 create TABLE settings(
     name VARCHAR(100) NOT NULL,
-    value VARCHAR(100) NOT NULL,
-
+    value VARCHAR(100) NOT NULL
 );
 
 --insertar company
@@ -237,6 +236,16 @@ CREATE TABLE reminders (
     seen BOOLEAN DEFAULT false,
     deactivated BOOLEAN DEFAULT false
 );
+
+CREATE TABLE vacaciones (
+    id SERIAL PRIMARY KEY,
+    employee_id INTEGER NOT NULL,
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP NOT NULL,
+    type VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+)
 
 CREATE TABLE block_appointments(
     id SERIAL PRIMARY KEY,
