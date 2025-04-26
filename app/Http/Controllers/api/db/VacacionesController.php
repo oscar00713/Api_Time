@@ -38,12 +38,13 @@ class VacacionesController extends Controller
         return response()->json($vacacion);
     }
 
-    // Crear una nueva vacación
+    // Crear nuevas vacaciones para varios empleados
     public function store(Request $request)
     {
         $dbConnection = $request->get('db_connection');
         $validator = Validator::make($request->all(), [
-            'employee_id' => 'required|integer|exists:users,id',
+            'employee_ids' => 'required|array|min:1',
+            'employee_ids.*' => 'integer|exists:users,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'type' => 'required|string|max:100',
@@ -53,11 +54,47 @@ class VacacionesController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->only(['employee_id', 'start_date', 'end_date', 'type']);
-        $id = DB::connection($dbConnection)->table('vacaciones')->insertGetId($data);
-        $vacacion = DB::connection($dbConnection)->table('vacaciones')->where('id', $id)->first();
+        $appointmentsToReschedule = [];
+        foreach ($request->employee_ids as $employee_id) {
+            // Buscar turnos asignados en el rango de vacaciones
+            $appointments = DB::connection($dbConnection)->table('appointments')
+                ->where('employee_id', $employee_id)
+                ->where(function($q) use ($request) {
+                    $q->where('start_date', '<=', $request->end_date)
+                      ->where('end_date', '>=', $request->start_date);
+                })
+                ->get();
 
-        return response()->json($vacacion, 201);
+            if ($appointments->count() > 0) {
+                foreach ($appointments as $appt) {
+                    $appointmentsToReschedule[] = $appt;
+                }
+            }
+        }
+
+        // Si hay turnos que deben posponerse, devolverlos y NO registrar las vacaciones aún
+        if (count($appointmentsToReschedule) > 0) {
+            return response()->json([
+                'message' => 'Existen turnos asignados en el rango de vacaciones. Deben ser pospuestos antes de registrar las vacaciones.',
+                'appointments_to_reschedule' => $appointmentsToReschedule
+            ], 409);
+        }
+
+        // Si no hay turnos, registrar las vacaciones normalmente
+        $vacaciones = [];
+        foreach ($request->employee_ids as $employee_id) {
+            $data = [
+                'employee_id' => $employee_id,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'type' => $request->type,
+            ];
+            $id = DB::connection($dbConnection)->table('vacaciones')->insertGetId($data);
+            $vacacion = DB::connection($dbConnection)->table('vacaciones')->where('id', $id)->first();
+            $vacaciones[] = $vacacion;
+        }
+
+        return response()->json($vacaciones, 201);
     }
 
     // Actualizar una vacación existente

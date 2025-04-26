@@ -152,6 +152,7 @@ class AppoimentSuggestionsController extends Controller
 
                 $allSlots = array_merge($allSlots, $slots);
                 $allSlots = array_unique($allSlots, SORT_REGULAR);
+                $allSlots = array_values($allSlots); // <-- Fuerza array indexado
 
                 if (count($allSlots) >= $minSlots) {
                     $foundEnough = true;
@@ -214,7 +215,7 @@ class AppoimentSuggestionsController extends Controller
                 }
 
                 return response()->json([
-                    'suggestions' => $allSlots,
+                    'suggestions' => array_values($allSlots), // <-- Fuerza array indexado
                     'message' => $msg,
                     'time_label' => $validated['dayAndTime']
                 ]);
@@ -223,7 +224,7 @@ class AppoimentSuggestionsController extends Controller
             $timeSlots = $this->generateTimeSlots($query, $employees, $totalDuration, $validated);
 
             return response()->json([
-                'suggestions' => $timeSlots,
+                'suggestions' => array_values($timeSlots), // <-- Fuerza array indexado
                 'time_label' => $validated['dayAndTime'] // Añadimos la etiqueta de tiempo a la respuesta
             ]);
         } catch (\Exception $e) {
@@ -308,11 +309,17 @@ class AppoimentSuggestionsController extends Controller
             $allSlots = $this->addTakenSlotsInfo($allSlots, $existingAppointments, $blockedAppointments);
         }
 
+        // Filter out slots in the past (only future slots)
+        $now = Carbon::now();
+        $allSlots = array_filter($allSlots, function ($slot) use ($now) {
+            return Carbon::parse($slot['start'])->greaterThanOrEqualTo($now);
+        });
+
         usort($allSlots, function ($a, $b) {
             return strcmp($a['start'], $b['start']);
         });
 
-        return $allSlots;
+        return array_values($allSlots);
     }
 
     private function getDateRange(array $validated): array
@@ -322,45 +329,47 @@ class AppoimentSuggestionsController extends Controller
         $now = Carbon::now();
 
 
-        // Determinar fecha de inicio según el parámetro dayAndTime
-        $start = match ($validated['dayAndTime']) {
-            'now' => $now->copy(),
-            'about_now' => $now->copy()->addMinutes(30),
-            '1hour' => $now->copy(),
-            'tomorrow' => $now->copy()->addDay()->startOfDay(),
-            'next_week' => $now->copy()->next($now->dayOfWeek)->startOfDay(), // Mismo día de la semana próxima
-            'next_month' => $now->copy()->addMonth()->startOfDay(),
-            '3months' => $now->copy()->addMonths(3)->startOfDay(),
-            '6months' => $now->copy()->addMonths(6)->startOfDay(),
-            'morning', 'in the morning' => $now->copy()->setTime(6, 0),
-            'afternoon', 'in the afternoon' => $now->copy()->setTime(12, 0),
-            'night', 'in the night' => $now->copy()->setTime(18, 0),
-            default => (
-                (!empty($validated['calendar_date']) && !empty($validated['calendar_time']))
-                ? Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])
-                : $now->copy()
-            )
-        };
+        // Solo si dayAndTime es "calendar", usar exactamente ese datetime como inicio
+        if (
+            isset($validated['dayAndTime']) &&
+            $validated['dayAndTime'] === 'calendar' &&
+            !empty($validated['calendar_date']) &&
+            !empty($validated['calendar_time'])
+        ) {
+            $start = Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time']);
+            $end = $start->copy()->addDay(); // Puedes ajustar el rango de fin según tu lógica de negocio
+        } else {
+            // Lógica anterior para otros casos
+            $start = match ($validated['dayAndTime']) {
+                'now' => $now->copy(),
+                'about_now' => $now->copy()->addMinutes(30),
+                '1hour' => $now->copy(),
+                'tomorrow' => $now->copy()->addDay()->startOfDay(),
+                'next_week' => $now->copy()->next($now->dayOfWeek)->startOfDay(),
+                'next_month' => $now->copy()->addMonth()->startOfDay(),
+                '3months' => $now->copy()->addMonths(3)->startOfDay(),
+                '6months' => $now->copy()->addMonths(6)->startOfDay(),
+                'morning', 'in the morning' => $now->copy()->setTime(6, 0),
+                'afternoon', 'in the afternoon' => $now->copy()->setTime(12, 0),
+                'night', 'in the night' => $now->copy()->setTime(18, 0),
+                default => $now->copy()
+            };
 
-        // Determinar fecha de fin según el parámetro dayAndTime
-        $end = match ($validated['dayAndTime']) {
-            'now' => $now->copy()->endOfDay(),
-            'about_now' => $now->copy()->endOfDay(),
-            '1hour' => $now->copy()->addHours(3),
-            'tomorrow' => $now->copy()->addDay()->endOfDay(),
-            'next_week' => $now->copy()->next($now->dayOfWeek)->endOfDay(), // Mismo día de la semana próxima
-            'next_month' => $now->copy()->addMonth()->endOfDay(),
-            '3months' => $now->copy()->addMonths(3)->endOfDay(),
-            '6months' => $now->copy()->addMonths(6)->endOfDay(),
-            'morning', 'in the morning' => $now->copy()->setTime(12, 0),
-            'afternoon', 'in the afternoon' => $now->copy()->setTime(18, 0),
-            'night', 'in the night' => $now->copy()->setTime(23, 59),
-            default => (
-                (!empty($validated['calendar_date']) && !empty($validated['calendar_time']))
-                ? Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])->addDay()
-                : $now->copy()->addDay()
-            )
-        };
+            $end = match ($validated['dayAndTime']) {
+                'now' => $now->copy()->endOfDay(),
+                'about_now' => $now->copy()->endOfDay(),
+                '1hour' => $now->copy()->addHours(3),
+                'tomorrow' => $now->copy()->addDay()->endOfDay(),
+                'next_week' => $now->copy()->next($now->dayOfWeek)->endOfDay(),
+                'next_month' => $now->copy()->addMonth()->endOfDay(),
+                '3months' => $now->copy()->addMonths(3)->endOfDay(),
+                '6months' => $now->copy()->addMonths(6)->endOfDay(),
+                'morning', 'in the morning' => $now->copy()->setTime(12, 0),
+                'afternoon', 'in the afternoon' => $now->copy()->setTime(18, 0),
+                'night', 'in the night' => $now->copy()->setTime(23, 59),
+                default => $now->copy()->addDay()
+            };
+        }
 
         return [
             'start' => $start,
@@ -533,8 +542,15 @@ class AppoimentSuggestionsController extends Controller
             $slot['time_label'] = $validated['dayAndTime']; // Añadimos la etiqueta de tiempo a cada slot
             $slots[] = $slot;
         }
+        if (isset($validated['dayAndTime']) && $validated['dayAndTime'] === 'calendar') {
+            $slots = array_filter($slots, function ($slot) use ($period) {
+                return Carbon::parse($slot['start'])->greaterThanOrEqualTo($period['start']);
+            });
+        }
 
-        return $slots;
+        return array_values($slots);
+
+        //return $slots;
     }
 
     private function isSlotOccupied(Carbon $start, Carbon $end, int $employeeId, $appointments): bool

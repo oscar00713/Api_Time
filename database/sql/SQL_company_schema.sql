@@ -136,7 +136,7 @@ create TABLE settings(
 
 --insertar company
 INSERT INTO settings (name, value) VALUES   ('timezone', 'America/Chicago'),
-  ('date_limit', 'true'),
+  ('date_limit', 'false'),
   ('date_limit_type', 'specific'),
   ('appointment_price', '0'),
   ('date_limit_value', '2025-05-01');
