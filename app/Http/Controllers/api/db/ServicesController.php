@@ -172,7 +172,11 @@ class ServicesController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
-
+        // Validar si el nombre ya existe
+        $existingService = $query->table('services')->where('name', $request->name)->first();
+        if ($existingService) {
+            return response()->json(['error' => 'repeated'], 409);
+        }
         try {
             DB::beginTransaction();
 
