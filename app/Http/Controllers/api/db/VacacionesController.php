@@ -43,8 +43,8 @@ class VacacionesController extends Controller
     {
         $dbConnection = $request->get('db_connection');
         $validator = Validator::make($request->all(), [
-            'employee_ids' => 'required|array|min:1',
-            'employee_ids.*' => 'integer|exists:users,id',
+            'selectedSpecialists' => 'required|array|min:1',
+            'selectedSpecialists.*' => 'integer|exists:users,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'type' => 'required|string|max:100',
@@ -55,13 +55,16 @@ class VacacionesController extends Controller
         }
 
         $appointmentsToReschedule = [];
-        foreach ($request->employee_ids as $employee_id) {
+        foreach (
+            $request->selectedSpecialists
+            as $employee_id
+        ) {
             // Buscar turnos asignados en el rango de vacaciones
             $appointments = DB::connection($dbConnection)->table('appointments')
                 ->where('employee_id', $employee_id)
-                ->where(function($q) use ($request) {
+                ->where(function ($q) use ($request) {
                     $q->where('start_date', '<=', $request->end_date)
-                      ->where('end_date', '>=', $request->start_date);
+                        ->where('end_date', '>=', $request->start_date);
                 })
                 ->get();
 
@@ -82,7 +85,10 @@ class VacacionesController extends Controller
 
         // Si no hay turnos, registrar las vacaciones normalmente
         $vacaciones = [];
-        foreach ($request->employee_ids as $employee_id) {
+        foreach (
+            $request->selectedSpecialists
+            as $employee_id
+        ) {
             $data = [
                 'employee_id' => $employee_id,
                 'start_date' => $request->start_date,

@@ -58,5 +58,5 @@ Route::middleware('company')->group(function () {
 
     Route::get('/settings', [SettingsController::class, 'getSettings']);
     Route::post('/settings', [SettingsController::class, 'updateSetting']);
-    Route::apiResource('/vacaciones', VacacionesController::class);
+    Route::apiResource('/blockOffDays', VacacionesController::class);
 });
