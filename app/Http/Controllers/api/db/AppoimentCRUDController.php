@@ -47,19 +47,127 @@ class AppoimentCRUDController extends Controller
         }
     }
 
+    // public function store(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'client_id' => 'required|integer',
+    //         'service_id' => 'required|integer',
+    //         'employee_id' => 'required|integer',
+    //         'start_date' => 'required|date',
+    //         'end_date' => 'required|date|after:start_date',
+    //         'status' => 'required|integer',
+    //         'appointment_price' => 'sometimes|numeric',
+    //         'paid' => 'sometimes|boolean',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['errors' => $validator->errors()], 422);
+    //     }
+
+    //     $dbConnection = $request->get('db_connection');
+    //     $user = $request->get('user');
+
+    //     // Verificar permisos
+    //     if (!$this->authService->canAssignAppointment($user, $request->employee_id, $dbConnection)) {
+    //         return response()->json([
+    //             'error' => 'No tienes permiso para asignar este turno',
+    //             'details' => (int)$user['id'] === $request->employee_id
+    //                 ? 'Necesitas el permiso "appointments_self_assign" para asignarte turnos a ti mismo'
+    //                 : 'Necesitas el permiso "appointments_self_others" para asignar turnos a otros especialistas'
+    //         ], 403);
+    //     }
+
+    //     $query = DB::connection($dbConnection);
+
+    //     try {
+    //         // Verificar si el especialista está disponible
+    //         $existingAppointment = $query->table('appointments')
+    //             ->where('employee_id', $request->employee_id)
+    //             ->where(function($q) use ($request) {
+    //                 $q->whereBetween('start_date', [$request->start_date, $request->end_date])
+    //                   ->orWhereBetween('end_date', [$request->start_date, $request->end_date]);
+    //             })
+    //             ->first();
+
+    //         if ($existingAppointment) {
+    //             return response()->json(['error' => 'El especialista ya tiene una cita en ese horario'], 409);
+    //         }
+
+    //         // Obtener información de comisión del servicio
+    //         $userService = $query->table('user_services')
+    //             ->where('user_id', $request->employee_id)
+    //             ->where('service_id', $request->service_id)
+    //             ->first();
+
+    //         // Obtener el precio del servicio
+    //         $service = $query->table('services')
+    //             ->where('id', $request->service_id)
+    //             ->first();
+
+    //         $appointmentPrice = $request->appointment_price ?? ($service ? $service->service_price : 0);
+
+    //         // Calcular comisiones
+    //         $commissionType = 'none';
+    //         $commissionPercentage = 0;
+    //         $commissionFixed = 0;
+    //         $commissionTotal = 0;
+    //         $commissionPercentageTotal = 0;
+    //         $commissionFixedTotal = 0;
+
+    //         if ($userService) {
+    //             if ($userService->percentage > 0) {
+    //                 $commissionType = 'percentage';
+    //                 $commissionPercentage = $userService->percentage;
+    //                 $commissionPercentageTotal = ($appointmentPrice * $commissionPercentage) / 100;
+    //                 $commissionTotal = $commissionPercentageTotal;
+    //             } elseif ($userService->fixed > 0) {
+    //                 $commissionType = 'fixed';
+    //                 $commissionFixed = $userService->fixed;
+    //                 $commissionFixedTotal = $commissionFixed;
+    //                 $commissionTotal = $commissionFixedTotal;
+    //             }
+    //         }
+
+    //         $appointmentData = [
+    //             'client_id' => $request->client_id,
+    //             'service_id' => $request->service_id,
+    //             'employee_id' => $request->employee_id,
+    //             'status' => $request->status,
+    //             'start_date' => $request->start_date,
+    //             'end_date' => $request->end_date,
+    //             'user_comission_applied' => $commissionType,
+    //             'user_comission_percentage_applied' => $commissionPercentage,
+    //             'user_comission_percentage_total' => $commissionPercentageTotal,
+    //             'user_comission_fixed_total' => $commissionFixedTotal,
+    //             'user_comission_total' => $commissionTotal,
+    //             'appointment_price' => $appointmentPrice,
+    //             'paid' => $request->paid ?? false,
+    //             'paid_date' => $request->paid ? Carbon::now() : null,
+    //         ];
+
+    //         // Since start_date is the primary key, we don't need insertGetId
+    //         $query->table('appointments')->insert($appointmentData);
+
+    //         return response()->json([
+    //             'message' => 'Cita creada exitosamente',
+    //             'start_date' => $request->start_date
+    //         ], 201);
+    //     } catch (\Exception $e) {
+    //         return response()->json(['error' => $e->getMessage()], 500);
+    //     }
+    // }
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'client_id' => 'required|integer',
-            'appointment_price' => 'nullable|numeric',
-            'appointment_paid' => 'nullable|boolean',
+            'appointment_price' => 'nullable|numeric', // Corregido de 'nulllable' a 'nullable'
+            'appointment_paid' => 'nullable|boolean', // Corregido de 'nulllable' a 'nullable'
             'appointment_paid_invoice_id' => 'nullable|integer',
-            'selectedAppointments' => 'required|array',
-            'selectedAppointments.*.start_date' => 'required|date',
-            'selectedAppointments.*.end_date' => 'required|date|after:selectedAppointments.*.start_date',
-            'selectedAppointments.*.employee_id' => 'required|integer',
-            'selectedAppointments.*.service_id' => 'required|integer',
-            'status' => 'required|integer'
+            'appointments' => 'required|array',
+            'appointments.*.start' => 'required|date',
+            'appointments.*.end' => 'required|date|after:appointments.*.start',
+            'appointments.*.selectedEmployee' => 'required|integer',
+            'appointments.*.service_id' => 'required|integer',
         ]);
 
         if ($validator->fails()) {
@@ -72,41 +180,30 @@ class AppoimentCRUDController extends Controller
 
         try {
             DB::beginTransaction();
-            foreach ($request->selectedAppointments as $appointment) {
+            foreach ($request->appointments as $appointment) {
                 // Verificar permisos para cada empleado
-                if (!$this->authService->canAssignAppointment($user, $appointment['employee_id'], $dbConnection)) {
+                if (!$this->authService->canAssignAppointment($user, $appointment['selectedEmployee'], $dbConnection)) {
                     return response()->json([
                         'error' => 'No tienes permiso para asignar este turno',
-                        'details' => (int)$user['id'] === $appointment['employee_id']
+                        'details' => (int)$user['id'] === $appointment['selectedEmployee']
                             ? 'Necesitas el permiso "appointments_self_assign" para asignarte turnos a ti mismo'
                             : 'Necesitas el permiso "appointments_self_others" para asignar turnos a otros especialistas'
                     ], 403);
                 }
 
-                // Verificar si el especialista está de vacaciones en el rango solicitado
-                $vacation = $query->table('vacaciones')
-                    ->where('employee_id', $appointment['employee_id'])
-                    ->where(function ($q) use ($appointment) {
-                        $q->where(function ($innerQ) use ($appointment) {
-                            $innerQ->where('start_date', '<', $appointment['end_date'])
-                                   ->where('end_date', '>', $appointment['start_date']);
-                        });
-                    })
-                    ->first();
-
-                if ($vacation) {
-                    return response()->json(['error' => 'El especialista está de vacaciones en ese horario'], 409);
-                }
-
+                // In the store method, modify the specialist availability check
                 // Verificar si el especialista está disponible
                 $existingAppointment = $query->table('appointments')
-                    ->where('employee_id', $appointment['employee_id'])
+                    ->where('employee_id', $appointment['selectedEmployee'])
                     ->where(function ($q) use ($appointment) {
-                        $startWithTolerance = Carbon::parse($appointment['start_date'])->addMinutes(3);
-                        $endWithTolerance = Carbon::parse($appointment['end_date'])->subMinutes(3);
-                        $q->where(function($innerQ) use ($appointment, $startWithTolerance, $endWithTolerance) {
+                        // Add 3-minute tolerance for consecutive appointments
+                        $startWithTolerance = Carbon::parse($appointment['start'])->addMinutes(3);
+                        $endWithTolerance = Carbon::parse($appointment['end'])->subMinutes(3);
+
+                        // Only consider it an overlap if the appointment significantly overlaps
+                        $q->where(function ($innerQ) use ($appointment, $startWithTolerance, $endWithTolerance) {
                             $innerQ->where('start_date', '<', $endWithTolerance)
-                                  ->where('end_date', '>', $startWithTolerance);
+                                ->where('end_date', '>', $startWithTolerance);
                         });
                     })
                     ->first();
@@ -117,7 +214,7 @@ class AppoimentCRUDController extends Controller
 
                 // Obtener información de comisión del servicio
                 $userService = $query->table('user_services')
-                    ->where('user_id', $appointment['employee_id'])
+                    ->where('user_id', $appointment['selectedEmployee'])
                     ->where('service_id', $appointment['service_id'])
                     ->first();
 
@@ -146,11 +243,11 @@ class AppoimentCRUDController extends Controller
                 $appointmentData = [
                     'client_id' => $request->client_id,
                     'service_id' => $appointment['service_id'],
-                    'employee_id' => $appointment['employee_id'],
-                    'status' => $request->status,
-                    'start_date' => $appointment['start_date'],
-                    'end_date' => $appointment['end_date'],
-                    'appointment_date' => date('Y-m-d', strtotime($appointment['start_date'])),
+                    'employee_id' => $appointment['selectedEmployee'],
+                    'status' => 0, // Assuming default status
+                    'start_date' => $appointment['start'],
+                    'end_date' => $appointment['end'],
+                    'appointment_date' => date('Y-m-d', strtotime($appointment['start'])),
                     'user_comission_applied' => $commissionType,
                     'user_comission_percentage_applied' => $commissionPercentage,
                     'user_comission_percentage_total' => $commissionPercentageTotal,
@@ -159,16 +256,17 @@ class AppoimentCRUDController extends Controller
                     'appointment_price' => $request->appointment_price,
                     'paid' => $request->appointment_paid,
                     'paid_date' => $request->appointment_paid ? Carbon::now() : null,
+                    // 'appointment_paid_invoice_id' => $request->appointment_paid_invoice_id,
                 ];
-                $year = date('Y', strtotime($appointment['start_date']));
+                // En el método store
+                $year = date('Y', strtotime($appointment['start']));
                 $this->partitionService->ensureYearPartitionExists($year, $dbConnection);
+                // Insert each appointment
                 $query->table('appointments')->insert($appointmentData);
             }
 
-            DB::commit();
             return response()->json(['message' => 'Citas creadas exitosamente'], 201);
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -255,11 +353,11 @@ class AppoimentCRUDController extends Controller
                         // Add 3-minute tolerance for consecutive appointments
                         $startWithTolerance = Carbon::parse($startDate)->addMinutes(3);
                         $endWithTolerance = Carbon::parse($endDate)->subMinutes(3);
-                        
+
                         // Only consider it an overlap if the appointment significantly overlaps
-                        $q->where(function($innerQ) use ($startDate, $endDate, $startWithTolerance, $endWithTolerance) {
+                        $q->where(function ($innerQ) use ($startDate, $endDate, $startWithTolerance, $endWithTolerance) {
                             $innerQ->where('start_date', '<', $endWithTolerance)
-                                  ->where('end_date', '>', $startWithTolerance);
+                                ->where('end_date', '>', $startWithTolerance);
                         });
                     })
                     ->first();
@@ -326,16 +424,16 @@ class AppoimentCRUDController extends Controller
 
             // En el método update, cuando creas un nuevo registro
             if ($request->has('start_date')) {
-            // Create new appointment with updated data
-            $newAppointmentData = array_merge((array)$appointment, $updateData);
-            $newAppointmentData['start_date'] = $request->start_date;
-            $newAppointmentData['appointment_date'] = date('Y-m-d', strtotime($request->start_date)); // Añadir esta línea
-            
-            // Delete old appointment
-            $query->table('appointments')->where('start_date', $id)->delete();
-            
-            // Insert new appointment
-            $query->table('appointments')->insert($newAppointmentData);
+                // Create new appointment with updated data
+                $newAppointmentData = array_merge((array)$appointment, $updateData);
+                $newAppointmentData['start_date'] = $request->start_date;
+                $newAppointmentData['appointment_date'] = date('Y-m-d', strtotime($request->start_date)); // Añadir esta línea
+
+                // Delete old appointment
+                $query->table('appointments')->where('start_date', $id)->delete();
+
+                // Insert new appointment
+                $query->table('appointments')->insert($newAppointmentData);
 
                 return response()->json([
                     'message' => 'Cita actualizada exitosamente',
