@@ -191,6 +191,19 @@ class AppoimentCRUDController extends Controller
                     ], 403);
                 }
 
+                // Verificar si el especialista está de vacaciones en el rango solicitado
+                $vacation = $query->table('vacaciones')
+                    ->where('employee_id', $appointment['selectedEmployee'])
+                    ->where(function ($q) use ($appointment) {
+                        $q->where('start_date', '<', $appointment['end'])
+                            ->where('end_date', '>', $appointment['start']);
+                    })
+                    ->first();
+
+                if ($vacation) {
+                    return response()->json(['error' => 'blocked_off'], 409);
+                }
+
                 // In the store method, modify the specialist availability check
                 // Verificar si el especialista está disponible
                 $existingAppointment = $query->table('appointments')
@@ -344,6 +357,19 @@ class AppoimentCRUDController extends Controller
                 $startDate = $request->start_date ?? $appointment->start_date;
                 $endDate = $request->end_date ?? $appointment->end_date;
                 $employeeId = $request->employee_id ?? $appointment->employee_id;
+
+                // Verificar si el especialista está de vacaciones en el rango solicitado
+                $vacation = $query->table('vacaciones')
+                    ->where('employee_id', $employeeId)
+                    ->where(function ($q) use ($startDate, $endDate) {
+                        $q->where('start_date', '<', $endDate)
+                            ->where('end_date', '>', $startDate);
+                    })
+                    ->first();
+
+                if ($vacation) {
+                    return response()->json(['error' => 'blocked_off'], 409);
+                }
 
                 // In the update method, modify the availability check
                 $existingAppointment = $query->table('appointments')
