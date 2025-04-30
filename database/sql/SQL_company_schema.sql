@@ -139,6 +139,7 @@ INSERT INTO settings (name, value) VALUES   ('timezone', 'America/Chicago'),
   ('date_limit', 'false'),
   ('date_limit_type', 'specific'),
   ('appointment_price', '0'),
+  ('use_virtual_keyboard ','false'),
   ('date_limit_value', '2025-05-01');
 
 --crear tabla de company
@@ -246,6 +247,46 @@ CREATE TABLE vacaciones (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE categories (
+  id SERIAL PRIMARY KEY,
+  active BOOLEAN DEFAULT true,
+  name text COLLATE utf8_spanish_ci NOT NULL
+)
+
+CREATE TABLE productos (
+  id SERIAL PRIMARY KEY,
+  id_categoria INTEGER NOT NULL,
+  codigo text COLLATE utf8_spanish_ci NOT NULL,
+  descripcion text COLLATE utf8_spanish_ci NOT NULL,
+  stock INTEGER NOT NULL,
+  cost FLOAT NOT NULL,
+  extra fee FLOAT NOT NULL,
+  Markup FLOAT NOT NULL,
+  precio_venta FLOAT NOT NULL,
+  CONSTRAINT fk_categories FOREIGN KEY (id_categoria) REFERENCES categories(id) ON DELETE CASCADE
+);
+
+CREATE TABLE variations (
+    id SERIAL PRIMARY KEY,
+    id_producto INTEGER NOT NULL,
+    low_level INTEGER NOT NULL,
+    stock INTEGER NOT NULL,
+    alert INTEGER NOT NULL,
+    price FLOAT NOT NULL,
+    CONSTRAINT fk_producto FOREIGN KEY (id_producto) REFERENCES productos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE stock_history (
+    id SERIAL PRIMARY KEY,
+    id_variacion INTEGER NOT NULL,
+    change_type VARCHAR(100) NOT NULL,
+    date TIMESTAMP NOT NULL,
+    stock_from INTEGER NOT NULL,
+    stock_to INTEGER NOT NULL,
+    CONSTRAINT fk_variacion FOREIGN KEY (id_variacion) REFERENCES variations(id) ON DELETE CASCADE
+)
+
 
 CREATE TABLE block_appointments(
     id SERIAL PRIMARY KEY,

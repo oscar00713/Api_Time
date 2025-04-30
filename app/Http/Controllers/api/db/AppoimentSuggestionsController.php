@@ -223,9 +223,22 @@ class AppoimentSuggestionsController extends Controller
 
             $timeSlots = $this->generateTimeSlots($query, $employees, $totalDuration, $validated);
 
+            // Obtener empleados bloqueados por vacaciones en el rango del periodo
+            $vacationEmployeeIds = $query->table('vacaciones')
+                ->whereIn('employee_id', $employees->pluck('id'))
+                ->where(function ($q) use ($period) {
+                    $q->where('start_date', '<', $period['end'])
+                        ->where('end_date', '>', $period['start']);
+                })
+                ->pluck('employee_id')
+                ->unique()
+                ->values()
+                ->toArray();
+
             return response()->json([
                 'suggestions' => array_values($timeSlots), // <-- Fuerza array indexado
-                'time_label' => $validated['dayAndTime'] // Añadimos la etiqueta de tiempo a la respuesta
+                'time_label' => $validated['dayAndTime'], // Añadimos la etiqueta de tiempo a la respuesta
+                'blockoff_employee_ids' => $vacationEmployeeIds,
             ]);
         } catch (\Exception $e) {
             return response()->json([
