@@ -252,7 +252,7 @@ CREATE TABLE categories (
   id SERIAL PRIMARY KEY,
   active BOOLEAN DEFAULT true,
   name text COLLATE utf8_spanish_ci NOT NULL
-)
+);
 
 CREATE TABLE productos (
   id SERIAL PRIMARY KEY,
@@ -285,7 +285,7 @@ CREATE TABLE stock_history (
     stock_from INTEGER NOT NULL,
     stock_to INTEGER NOT NULL,
     CONSTRAINT fk_variacion FOREIGN KEY (id_variacion) REFERENCES variations(id) ON DELETE CASCADE
-)
+);
 
 
 CREATE TABLE block_appointments(
