@@ -269,12 +269,12 @@ CREATE TABLE productos (
 
 CREATE TABLE variations (
     id SERIAL PRIMARY KEY,
-    id_producto INTEGER NOT NULL,
+    id_product INTEGER NOT NULL,
     low_level INTEGER NOT NULL,
     stock INTEGER NOT NULL,
     alert INTEGER NOT NULL,
     price FLOAT NOT NULL,
-    CONSTRAINT fk_producto FOREIGN KEY (id_producto) REFERENCES productos(id) ON DELETE CASCADE
+    CONSTRAINT fk_productos FOREIGN KEY (id_producto) REFERENCES productos(id) ON DELETE CASCADE
 );
 
 CREATE TABLE stock_history (
