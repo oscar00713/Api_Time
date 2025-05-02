@@ -251,14 +251,14 @@ CREATE TABLE vacaciones (
 CREATE TABLE categories (
   id SERIAL PRIMARY KEY,
   active BOOLEAN DEFAULT true,
-  name text COLLATE utf8_spanish_ci NOT NULL
+  name VARCHAR(100) NOT NULL
 );
 
 CREATE TABLE productos (
   id SERIAL PRIMARY KEY,
   id_categoria INTEGER NOT NULL,
-  codigo text COLLATE utf8_spanish_ci NOT NULL,
-  descripcion text COLLATE utf8_spanish_ci NOT NULL,
+  codigo VARCHAR(100),
+  descripcion VARCHAR(100),
   stock INTEGER NOT NULL,
   cost FLOAT NOT NULL,
   extra_fee FLOAT NOT NULL,
