@@ -262,7 +262,7 @@ CREATE TABLE productos (
   stock INTEGER NOT NULL,
   cost FLOAT NOT NULL,
   extra_fee FLOAT NOT NULL,
-  Markup FLOAT NOT NULL,
+  markup FLOAT NOT NULL,
   precio_venta FLOAT NOT NULL,
   CONSTRAINT fk_categories FOREIGN KEY (id_categoria) REFERENCES categories(id) ON DELETE CASCADE
 );
