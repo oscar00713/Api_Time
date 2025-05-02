@@ -274,7 +274,7 @@ CREATE TABLE variations (
     stock INTEGER NOT NULL,
     alert INTEGER NOT NULL,
     price FLOAT NOT NULL,
-    CONSTRAINT fk_productos FOREIGN KEY (id_producto) REFERENCES productos(id) ON DELETE CASCADE
+    CONSTRAINT fk_productos FOREIGN KEY (id_product) REFERENCES productos(id) ON DELETE CASCADE
 );
 
 CREATE TABLE stock_history (
