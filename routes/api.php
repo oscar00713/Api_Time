@@ -19,7 +19,11 @@ use App\Http\Controllers\api\db\AppoimentCRUDController;
 use App\Http\Controllers\api\email\InvitacionController;
 use App\Http\Controllers\api\db\BlockAppointmentController;
 use App\Http\Controllers\api\db\AppoimentSuggestionsController;
+use App\Http\Controllers\api\db\CategoriesController;
+use App\Http\Controllers\api\db\ProductsController;
+use App\Http\Controllers\api\db\StockHistoryController;
 use App\Http\Controllers\api\db\VacacionesController;
+use App\Http\Controllers\api\db\VariationsController;
 use App\Http\Controllers\api\user_option\UserOptionsController;
 use App\Http\Controllers\api\invitacion\UserInvitationController;
 
@@ -59,4 +63,8 @@ Route::middleware('company')->group(function () {
     Route::get('/settings', [SettingsController::class, 'getSettings']);
     Route::post('/settings', [SettingsController::class, 'updateSetting']);
     Route::apiResource('/blockOffDays', VacacionesController::class);
+    Route::apiResource('products', ProductsController::class);
+    Route::apiResource('stockHistory', StockHistoryController::class);
+    Route::apiResource('categories', CategoriesController::class);
+    Route::apiResource('variants', VariationsController::class);
 });

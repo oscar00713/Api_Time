@@ -261,7 +261,7 @@ CREATE TABLE productos (
   descripcion text COLLATE utf8_spanish_ci NOT NULL,
   stock INTEGER NOT NULL,
   cost FLOAT NOT NULL,
-  extra fee FLOAT NOT NULL,
+  extra_fee FLOAT NOT NULL,
   Markup FLOAT NOT NULL,
   precio_venta FLOAT NOT NULL,
   CONSTRAINT fk_categories FOREIGN KEY (id_categoria) REFERENCES categories(id) ON DELETE CASCADE
