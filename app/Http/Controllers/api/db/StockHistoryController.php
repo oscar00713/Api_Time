@@ -17,7 +17,7 @@ class StockHistoryController extends Controller
         $perPage = $request->input('per_page', 10);
         $dbConnection = $request->get('db_connection');
         $stockHistory = DB::connection($dbConnection)->table('stock_history')->paginate($perPage, ['*'], 'page', $page);
-        return response()->json($stockHistory);
+        return response()->json(['data' => $stockHistory]);
     }
 
     /**
@@ -44,7 +44,7 @@ class StockHistoryController extends Controller
     {
         $dbConnection = $request->get('db_connection');
         $stockHistory = DB::connection($dbConnection)->table('stock_history')->find($id);
-        return response()->json($stockHistory);
+        return response()->json(['data' => $stockHistory]);
     }
 
     /**
@@ -71,6 +71,6 @@ class StockHistoryController extends Controller
     {
         $dbConnection = $request->get('db_connection');
         DB::connection($dbConnection)->table('stock_history')->where('id', $id)->delete();
-        return response()->json(['message' => 'Stock History eliminado']);
+        return response()->json(['message' => 'success'], 200);
     }
 }

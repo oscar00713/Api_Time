@@ -18,7 +18,7 @@ class VariationsController extends Controller
         $perPage = $request->input('per_page', 10);
         $dbConnection = $request->get('db_connection');
         $variations = DB::connection($dbConnection)->table('variations')->paginate($perPage, ['*'], 'page', $page);
-        return response()->json($variations);
+        return response()->json(['data' => $variations]);
     }
 
     /**
@@ -35,7 +35,7 @@ class VariationsController extends Controller
             'alert' => $request->input('alert'),
             'price' => $request->input('price'),
         ]);
-        return response()->json(['message' => 'Variation created'], 201);
+        return response()->json(['message' => 'success'], 201);
     }
 
     /**
@@ -46,7 +46,7 @@ class VariationsController extends Controller
 
         $dbConnection = $request->get('db_connection');
         $variation = DB::connection($dbConnection)->table('variations')->find($id);
-        return response()->json($variation);
+        return response()->json(['data' => $variation]);
     }
 
     /**
@@ -62,7 +62,7 @@ class VariationsController extends Controller
             'alert' => $request->input('alert'),
             'price' => $request->input('price'),
         ]);
-        return response()->json(['message' => 'Variation updated']);
+        return response()->json(['message' => 'success']);
     }
 
     /**
@@ -72,6 +72,6 @@ class VariationsController extends Controller
     {
         $dbConnection = $request->get('db_connection');
         DB::connection($dbConnection)->table('variations')->where('id', $id)->delete();
-        return response()->json(['message' => 'Variation deleted']);
+        return response()->json(['message' => 'success']);
     }
 }
