@@ -18,7 +18,7 @@ class VacacionesController extends Controller
             ->leftJoin('users', 'vacaciones.employee_id', '=', 'users.id')
             ->select('vacaciones.*', 'users.name as employee_name')
             ->get();
-        return response()->json($vacaciones);
+        return response()->json(['data' => $vacaciones]);
     }
 
     // Mostrar una vacación específica
@@ -35,7 +35,7 @@ class VacacionesController extends Controller
         if (!$vacacion) {
             return response()->json(['message' => 'Vacación no encontrada'], 404);
         }
-        return response()->json($vacacion);
+        return response()->json(['data' => $vacacion]);
     }
 
     // Crear nuevas vacaciones para varios empleados
@@ -100,7 +100,7 @@ class VacacionesController extends Controller
             $vacaciones[] = $vacacion;
         }
 
-        return response()->json($vacaciones, 201);
+        return response()->json(['data' => $vacaciones], 201);
     }
 
     // Actualizar una vacación existente
@@ -127,7 +127,7 @@ class VacacionesController extends Controller
         DB::connection($dbConnection)->table('vacaciones')->where('id', $id)->update($data);
         $vacacion = DB::connection($dbConnection)->table('vacaciones')->where('id', $id)->first();
 
-        return response()->json($vacacion);
+        return response()->json(['data' => $vacacion]);
     }
 
     // Eliminar una vacación
