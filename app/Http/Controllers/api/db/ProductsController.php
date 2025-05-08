@@ -17,7 +17,7 @@ class ProductsController extends Controller
         $perPage = $request->input('per_page', 10);
 
         $dbConnection = $request->get('db_connection');
-        $products = DB::connection($dbConnection)->table('products')->paginate($perPage, ['*'], 'page', $page);
+        $products = DB::connection($dbConnection)->table('productos')->paginate($perPage, ['*'], 'page', $page);
         return response()->json($products);
     }
 
