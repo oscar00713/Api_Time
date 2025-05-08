@@ -18,7 +18,7 @@ class ProductsController extends Controller
 
         $dbConnection = $request->get('db_connection');
         $products = DB::connection($dbConnection)->table('productos')->paginate($perPage, ['*'], 'page', $page);
-        return response()->json($products);
+        return response()->json(['data' => $products]);
     }
 
     /**
@@ -37,7 +37,7 @@ class ProductsController extends Controller
             'Markup',
             'precio_venta'
         ]));
-        return response()->json(['id' => $id], 201);
+        return response()->json(['data' => $id], 201);
     }
 
     /**
