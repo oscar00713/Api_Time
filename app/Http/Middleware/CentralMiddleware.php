@@ -37,7 +37,7 @@ class CentralMiddleware
                 return response()->json(['error' => 'UNAUTHORIZED1'], 401);
             }
 
-            $user = User::where('email', $email)->where('hash', $hash)->where('active', true)->select('id', 'name', 'email', 'hash', 'is_trial', 'email_verified', 'active', 'password')->first();
+            $user = User::where('email', $email)->where('hash', $hash)->where('active', true)->select('id', 'name', 'email', 'hash', 'email_verified', 'active', 'password')->first();
 
 
             if (!$user) {

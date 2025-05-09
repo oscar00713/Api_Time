@@ -19,8 +19,8 @@ return new class extends Migration
             $table->integer('email_hash')->default(1);
             $table->boolean('email_verified')->default(false);
             $table->string('password');
-            $table->boolean('is_trial')->default(true);
-            $table->foreignId('payer_id')->nullable()->index()->constrained('users')->onDelete('cascade');
+            //$table->boolean('is_trial')->default(true);
+            //$table->foreignId('payer_id')->nullable()->index()->constrained('users')->onDelete('cascade');
             $table->string('phone')->nullable();
             $table->string('hash')->nullable();
             $table->rememberToken();
