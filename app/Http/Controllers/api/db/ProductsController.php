@@ -18,6 +18,14 @@ class ProductsController extends Controller
 
         $dbConnection = $request->get('db_connection');
         $products = DB::connection($dbConnection)->table('productos')->paginate($perPage, ['*'], 'page', $page);
+
+        // Para cada producto, obtener sus variaciones
+        foreach ($products as &$product) {
+            $product->variations = DB::connection($dbConnection)
+                ->table('variations')
+                ->where('id_product', $product->id)
+                ->get();
+        }
         return response()->json(['data' => $products]);
     }
 
