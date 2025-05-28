@@ -287,6 +287,16 @@ CREATE TABLE stock_history (
     CONSTRAINT fk_variacion FOREIGN KEY (id_variacion) REFERENCES variations(id) ON DELETE CASCADE
 );
 
+CREATE TABLE subscription_status (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    expires_at DATE NOT NULL,
+    last_synced_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
 CREATE TABLE block_appointments(
     id SERIAL PRIMARY KEY,
@@ -318,7 +328,7 @@ CREATE TABLE appointments (
     status INTEGER DEFAULT 0,--"pending" =0, "checked_in"=1, "in_room"=2, "checked_out"=3, "cancelled"=4
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
-    PRIMARY KEY (appointment_date, start_date),  -- Incluir appointment_date en la clave primaria
+    PRIMARY KEY (appointment_date, start_date, client_id, service_id, employee_id),  -- Incluir appointment_date en la clave primaria
     CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id),
     CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
     CONSTRAINT fk_users FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
