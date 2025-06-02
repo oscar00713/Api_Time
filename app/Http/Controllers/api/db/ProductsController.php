@@ -35,7 +35,7 @@ class ProductsController extends Controller
     public function store(Request $request)
     {
         $dbConnection = $request->get('db_connection');
-        $id = DB::connection($dbConnection)->table('productos')->insertGetId($request->only([
+        $productData = $request->only([
             'id_categoria',
             'codigo',
             'descripcion',
@@ -44,7 +44,17 @@ class ProductsController extends Controller
             'extra fee',
             'Markup',
             'precio_venta'
-        ]));
+        ]);
+        $id = DB::connection($dbConnection)->table('productos')->insertGetId($productData);
+
+        // Guardar variaciones si vienen en la petición
+        $variations = $request->input('variations');
+        if ($variations && is_array($variations)) {
+            foreach ($variations as $variation) {
+                $variation['id_product'] = $id;
+                DB::connection($dbConnection)->table('variations')->insert($variation);
+            }
+        }
         return response()->json(['data' => $id], 201);
     }
 
@@ -64,7 +74,7 @@ class ProductsController extends Controller
     public function update(Request $request, string $id)
     {
         $dbConnection = $request->get('db_connection');
-        DB::connection($dbConnection)->table('productos')->where('id', $id)->update($request->only([
+        $productData = $request->only([
             'id_categoria',
             'codigo',
             'descripcion',
@@ -73,7 +83,20 @@ class ProductsController extends Controller
             'extra fee',
             'Markup',
             'precio_venta'
-        ]));
+        ]);
+        DB::connection($dbConnection)->table('productos')->where('id', $id)->update($productData);
+
+        // Actualizar variaciones si vienen en la petición
+        $variations = $request->input('variations');
+        if ($variations && is_array($variations)) {
+            // Elimina las variaciones existentes para este producto
+            DB::connection($dbConnection)->table('variations')->where('id_product', $id)->delete();
+            // Inserta las nuevas variaciones
+            foreach ($variations as $variation) {
+                $variation['id_product'] = $id;
+                DB::connection($dbConnection)->table('variations')->insert($variation);
+            }
+        }
         return response()->json(['message' => 'success'], 200);
     }
 

@@ -17,11 +17,16 @@ class UserDBController extends Controller
         $perPage = $request->input('per_page', 10);
 
         $dbConnection = $request->get('db_connection');
-        $users = DB::connection($dbConnection)
+        $query = DB::connection($dbConnection)
             ->table('users')
-            ->select('id', 'name', 'email')  // Selecciona solo las columnas necesarias
-            ->paginate($perPage, ['*'], 'page', $page);  // Paginación, ajusta el número según sea necesario
+            ->select('id', 'name', 'email');  // Selecciona solo las columnas necesarias
+        // Add this block to filter by name if filter[all] is present
+        $filter = $request->input('filter', []);
+        if (!empty($filter['all'])) {
+            $query->where('name', 'ILIKE', '%' . $filter['all'] . '%');
+        }
 
+        $users = $query->paginate($perPage, ['*'], 'page', $page);
         return response()->json($users);
     }
 

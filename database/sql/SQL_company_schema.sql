@@ -270,10 +270,13 @@ CREATE TABLE productos (
 CREATE TABLE variations (
     id SERIAL PRIMARY KEY,
     id_product INTEGER NOT NULL,
-    low_level INTEGER NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    cost FLOAT NOT NULL,
+    extra_fee FLOAT NOT NULL,
+    markup FLOAT NOT NULL,
+    total FLOAT NOT NULL,
     stock INTEGER NOT NULL,
-    alert INTEGER NOT NULL,
-    price FLOAT NOT NULL,
+    refiil_alert INTEGER NOT NULL,
     CONSTRAINT fk_productos FOREIGN KEY (id_product) REFERENCES productos(id) ON DELETE CASCADE
 );
 
