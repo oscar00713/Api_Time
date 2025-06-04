@@ -259,7 +259,6 @@ CREATE TABLE productos (
   id_categoria INTEGER NOT NULL,
   codigo VARCHAR(100),
   descripcion VARCHAR(100),
-  stock INTEGER NOT NULL,
   cost FLOAT NOT NULL,
   extra_fee FLOAT NOT NULL,
   markup FLOAT NOT NULL,
