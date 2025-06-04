@@ -26,6 +26,8 @@ use App\Http\Controllers\api\db\VacacionesController;
 use App\Http\Controllers\api\db\VariationsController;
 use App\Http\Controllers\api\user_option\UserOptionsController;
 use App\Http\Controllers\api\invitacion\UserInvitationController;
+use App\Http\Controllers\api\appointments\AppointmentsdaysController;
+use App\Http\Controllers\api\appointments\AppointmentsweekController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -59,6 +61,8 @@ Route::middleware('company')->group(function () {
     Route::apiResource('/appointments', AppoimentCRUDController::class);
     Route::post('/appointmentSuggestions', [AppoimentSuggestionsController::class, 'getSuggestions']);
     Route::post('/blockAppointment', [BlockAppointmentController::class, 'manageBlock']);
+    Route::post('/appointments/day', [AppointmentsdaysController::class, 'getAppointmentsByDay']);
+    Route::post('/appointments/week', [AppointmentsdaysController::class, 'getAppointmentsByWeek']);
 
     Route::get('/settings', [SettingsController::class, 'getSettings']);
     Route::post('/settings', [SettingsController::class, 'updateSetting']);
