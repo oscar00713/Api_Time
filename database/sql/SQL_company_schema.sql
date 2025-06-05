@@ -256,27 +256,26 @@ CREATE TABLE categories (
 
 CREATE TABLE productos (
   id SERIAL PRIMARY KEY,
-  id_categoria INTEGER NOT NULL,
-  codigo VARCHAR(100),
-  descripcion VARCHAR(100),
-  cost FLOAT NOT NULL,
-  extra_fee FLOAT NOT NULL,
-  markup FLOAT NOT NULL,
-  precio_venta FLOAT NOT NULL,
-  CONSTRAINT fk_categories FOREIGN KEY (id_categoria) REFERENCES categories(id) ON DELETE CASCADE
+  name VARCHAR(100) NOT NULL,
+  description VARCHAR(100),
+  code VARCHAR(100),
+  categoria_id INTEGER NOT NULL,
+  expiration_date DATE,
+  active BOOLEAN DEFAULT true,
+  CONSTRAINT fk_categories FOREIGN KEY (categoria_id) REFERENCES categories(id) ON DELETE CASCADE
 );
 
 CREATE TABLE variations (
     id SERIAL PRIMARY KEY,
-    id_product INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
     name VARCHAR(100) NOT NULL,
     cost FLOAT NOT NULL,
     extra_fee FLOAT NOT NULL,
     markup FLOAT NOT NULL,
     total FLOAT NOT NULL,
     stock INTEGER NOT NULL,
-    refiil_alert INTEGER NOT NULL,
-    CONSTRAINT fk_productos FOREIGN KEY (id_product) REFERENCES productos(id) ON DELETE CASCADE
+    refill_alert INTEGER NOT NULL,
+    CONSTRAINT fk_productos FOREIGN KEY (product_id) REFERENCES productos(id) ON DELETE CASCADE
 );
 
 CREATE TABLE stock_history (

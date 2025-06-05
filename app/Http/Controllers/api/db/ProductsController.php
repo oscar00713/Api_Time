@@ -36,14 +36,11 @@ class ProductsController extends Controller
     {
         $dbConnection = $request->get('db_connection');
         $productData = $request->only([
-            'id_categoria',
-            'codigo',
-            'descripcion',
-            'stock',
-            'cost',
-            'extra fee',
-            'Markup',
-            'precio_venta'
+            'categoria_id',
+            'name',
+            'code',
+            'description',
+            'expiration_date'
         ]);
         $id = DB::connection($dbConnection)->table('productos')->insertGetId($productData);
 
@@ -51,7 +48,7 @@ class ProductsController extends Controller
         $variations = $request->input('variations');
         if ($variations && is_array($variations)) {
             foreach ($variations as $variation) {
-                $variation['id_product'] = $id;
+                $variation['product_id'] = $id;
                 DB::connection($dbConnection)->table('variations')->insert($variation);
             }
         }
