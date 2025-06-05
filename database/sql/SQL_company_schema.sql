@@ -274,6 +274,7 @@ CREATE TABLE variations (
     markup FLOAT NOT NULL,
     total FLOAT NOT NULL,
     stock INTEGER NOT NULL,
+    active BOOLEAN DEFAULT true,
     refill_alert INTEGER NOT NULL,
     CONSTRAINT fk_productos FOREIGN KEY (product_id) REFERENCES productos(id) ON DELETE CASCADE
 );
