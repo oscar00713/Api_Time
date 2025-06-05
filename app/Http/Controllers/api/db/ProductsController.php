@@ -23,7 +23,7 @@ class ProductsController extends Controller
         foreach ($products as &$product) {
             $product->variations = DB::connection($dbConnection)
                 ->table('variations')
-                ->where('id_product', $product->id)
+                ->where('product_id', $product->id)
                 ->get();
         }
         return response()->json(['data' => $products]);
@@ -72,14 +72,11 @@ class ProductsController extends Controller
     {
         $dbConnection = $request->get('db_connection');
         $productData = $request->only([
-            'id_categoria',
-            'codigo',
-            'descripcion',
-            'stock',
-            'cost',
-            'extra fee',
-            'Markup',
-            'precio_venta'
+            'categoria_id',
+            'name',
+            'code',
+            'description',
+            'expiration_date'
         ]);
         DB::connection($dbConnection)->table('productos')->where('id', $id)->update($productData);
 
@@ -87,10 +84,10 @@ class ProductsController extends Controller
         $variations = $request->input('variations');
         if ($variations && is_array($variations)) {
             // Elimina las variaciones existentes para este producto
-            DB::connection($dbConnection)->table('variations')->where('id_product', $id)->delete();
+            DB::connection($dbConnection)->table('variations')->where('product_id', $id)->delete();
             // Inserta las nuevas variaciones
             foreach ($variations as $variation) {
-                $variation['id_product'] = $id;
+                $variation['product_id'] = $id;
                 DB::connection($dbConnection)->table('variations')->insert($variation);
             }
         }

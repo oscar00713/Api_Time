@@ -30,7 +30,6 @@ class AppointmentsdaysController extends Controller
         $endDate = Carbon::parse($validated['date'])->endOfDay();
 
         try {
-            // Usar QueryBuilder de Spatie para permitir filtrado y ordenamiento
             $query = DB::connection($dbConnection)->table('appointments')
                 ->join('clients', 'appointments.client_id', '=', 'clients.id')
                 ->join('services', 'appointments.service_id', '=', 'services.id')
@@ -44,19 +43,43 @@ class AppointmentsdaysController extends Controller
                 ])
                 ->whereBetween('appointments.start_date', [$date, $endDate]);
 
-            $appointments = QueryBuilder::for($query)
-                ->allowedFilters([
-                    AllowedFilter::exact('service_id'),
-                    AllowedFilter::exact('employee_id'),
-                    AllowedFilter::exact('client_id'),
-                    AllowedFilter::exact('status'),
-                ])
-                ->allowedSorts(['start_date', 'end_date', 'status', 'service_name', 'specialist_name'])
-                ->defaultSort('start_date')
-                ->paginate($request->input('per_page', 16))
-                ->appends($request->query());
+            // Filtros manuales
+            if ($request->filled('service_id')) {
+                $query->where('appointments.service_id', $request->input('service_id'));
+            }
+            if ($request->filled('employee_id')) {
+                $query->where('appointments.employee_id', $request->input('employee_id'));
+            }
+            if ($request->filled('client_id')) {
+                $query->where('appointments.client_id', $request->input('client_id'));
+            }
+            if ($request->filled('status')) {
+                $query->where('appointments.status', $request->input('status'));
+            }
 
-            return response()->json($appointments);
+            // Ordenamiento manual
+            $sortable = ['start_date', 'end_date', 'status', 'service_name', 'specialist_name'];
+            $sort = $request->input('sort', 'start_date');
+            $direction = $request->input('direction', 'asc');
+            if (in_array($sort, $sortable)) {
+                $query->orderBy($sort, $direction);
+            } else {
+                $query->orderBy('start_date', 'asc');
+            }
+
+            // Paginación
+            $perPage = $request->input('per_page', 16);
+            $page = $request->input('page', 1);
+            $total = $query->count();
+            $results = $query->forPage($page, $perPage)->get();
+
+            return response()->json([
+                'data' => $results,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => ceil($total / $perPage),
+            ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
