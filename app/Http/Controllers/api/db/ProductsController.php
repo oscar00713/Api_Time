@@ -17,7 +17,14 @@ class ProductsController extends Controller
         $perPage = $request->input('per_page', 10);
 
         $dbConnection = $request->get('db_connection');
-        $products = DB::connection($dbConnection)->table('productos')->paginate($perPage, ['*'], 'page', $page);
+        $query = DB::connection($dbConnection)->table('productos');
+
+        // Filtro por categoría si viene en la petición
+        if ($request->filled('categori')) {
+            $query->where('categoria_id', $request->input('categori'));
+        }
+
+        $products = $query->paginate($perPage, ['*'], 'page', $page);
 
         // Para cada producto, obtener sus variaciones
         foreach ($products as &$product) {
