@@ -33,7 +33,7 @@ class ProductsController extends Controller
                 ->where('product_id', $product->id)
                 ->get();
         }
-        return response()->json(['data' => $products]);
+        return response()->json($products);
     }
 
     /**
