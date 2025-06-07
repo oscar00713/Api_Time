@@ -42,7 +42,8 @@ class AppointmentsdaysController extends Controller
                     'clients.first_name as client_first_name',
                     'clients.last_name as client_last_name',
                     'services.name as service_name',
-                    'users.name as specialist_name'
+                    'users.name as specialist_name',
+                    'users.badge_color as specialist_badge_color'
                 ])
                 ->whereBetween('appointments.start_date', [$date, $endDate])
                 ->where('appointments.start_date', '>=', $from); // <-- Esta línea filtra desde hace 30 minutos
