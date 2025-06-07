@@ -29,6 +29,9 @@ class AppointmentsdaysController extends Controller
         $date = Carbon::parse($validated['date'])->startOfDay();
         $endDate = Carbon::parse($validated['date'])->endOfDay();
 
+        // Mostrar solo turnos desde hace 30 minutos en adelante
+        $from = Carbon::now()->subMinutes(30);
+
         try {
             $query = DB::connection($dbConnection)->table('appointments')
                 ->join('clients', 'appointments.client_id', '=', 'clients.id')
@@ -41,7 +44,8 @@ class AppointmentsdaysController extends Controller
                     'services.name as service_name',
                     'users.name as specialist_name'
                 ])
-                ->whereBetween('appointments.start_date', [$date, $endDate]);
+                ->whereBetween('appointments.start_date', [$date, $endDate])
+                ->where('appointments.start_date', '>=', $from); // <-- Esta línea filtra desde hace 30 minutos
 
             // Filtros manuales
             if ($request->filled('service_id')) {
