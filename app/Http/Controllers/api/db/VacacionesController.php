@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 
 class VacacionesController extends Controller
 {
@@ -112,6 +113,11 @@ class VacacionesController extends Controller
             return response()->json(['message' => 'Vacación no encontrada'], 404);
         }
 
+        // Validar que la fecha de inicio sea a futuro
+        if (Carbon::parse($vacacion->start_date)->isToday() || Carbon::parse($vacacion->start_date)->isPast()) {
+            return response()->json(['message' => 'No se puede editar una vacación que ya inició o inicia hoy.'], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'employee_id' => 'sometimes|integer|exists:users,id',
             'start_date' => 'sometimes|date',
@@ -138,6 +144,12 @@ class VacacionesController extends Controller
         if (!$vacacion) {
             return response()->json(['message' => 'Vacación no encontrada'], 404);
         }
+
+        // Validar que la fecha de inicio sea a futuro
+        if (Carbon::parse($vacacion->start_date)->isToday() || Carbon::parse($vacacion->start_date)->isPast()) {
+            return response()->json(['message' => 'No se puede eliminar una vacación que ya inició o inicia hoy.'], 403);
+        }
+
         DB::connection($dbConnection)->table('vacaciones')->where('id', $id)->delete();
         return response()->json(['message' => 'Vacación eliminada correctamente']);
     }
