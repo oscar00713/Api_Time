@@ -300,6 +300,25 @@ CREATE TABLE subscription_status (
     CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE history (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(20) NOT NULL, -- Ejemplo de valores: "S", "O", "A", "P", "SIMPLE", "FILE"
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER NOT NULL,
+    CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- type puede ser:
+-- "S"      -- (por ejemplo: Subject)
+-- "O"      -- (por ejemplo: Observation)
+-- "A"      -- (por ejemplo: Assessment)
+-- "P"      -- (por ejemplo: Plan)
+-- "SIMPLE" -- (nota simple)
+-- "FILE"   -- (nota con archivo adjunto)
+
+
 CREATE TABLE block_appointments(
     id SERIAL PRIMARY KEY,
     datetime_start TIMESTAMP NOT NULL,
@@ -330,6 +349,8 @@ CREATE TABLE appointments (
     status INTEGER DEFAULT 0,--"pending" =0, "checked_in"=1, "in_room"=2, "checked_out"=3, "cancelled"=4
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
+    forced BOOLEAN DEFAULT false,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,  --agregar campo de cuando se actualize el appointment
     PRIMARY KEY (appointment_date, start_date, client_id, service_id, employee_id),  -- Incluir appointment_date en la clave primaria
     CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id),
     CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,

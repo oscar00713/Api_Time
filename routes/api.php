@@ -19,10 +19,13 @@ use App\Http\Controllers\api\db\SpecialistController;
 use App\Http\Controllers\api\db\VacacionesController;
 use App\Http\Controllers\api\db\VariationsController;
 use App\Http\Controllers\api\db\StockHistoryController;
+use App\Http\Controllers\api\history\HistoryController;
 use App\Http\Controllers\api\CompanyEmployeesController;
 use App\Http\Controllers\api\db\AppoimentCRUDController;
 use App\Http\Controllers\api\email\InvitacionController;
 use App\Http\Controllers\api\db\BlockAppointmentController;
+use App\Http\Controllers\api\client\ClientSummaryController;
+use App\Http\Controllers\api\appointments\ByClientController;
 use App\Http\Controllers\api\db\AppoimentSuggestionsController;
 use App\Http\Controllers\api\user_option\UserOptionsController;
 use App\Http\Controllers\api\invitacion\UserInvitationController;
@@ -65,6 +68,8 @@ Route::middleware('company')->group(function () {
     Route::post('/appointments/day', [AppointmentsdaysController::class, 'getAppointmentsByDay']);
     Route::post('/appointments/week', [AppointmentsweekController::class, 'getAppointmentsByWeek']);
     Route::post('/appointments/month', [AppointmentsmonthController::class, 'getAppointmentsByMonth']);
+    Route::get('/appointments/byClient/{client_id}', [ByClientController::class, 'index']);
+    Route::get('/clients/summary/{client_id}', [ClientSummaryController::class, 'show']);
 
     Route::get('/settings', [SettingsController::class, 'getSettings']);
     Route::post('/settings', [SettingsController::class, 'updateSetting']);
@@ -73,4 +78,5 @@ Route::middleware('company')->group(function () {
     Route::apiResource('/stockHistory', StockHistoryController::class);
     Route::apiResource('/categories', CategoriesController::class);
     Route::apiResource('/variants', VariationsController::class);
+    Route::apiResource('/history', HistoryController::class);
 });

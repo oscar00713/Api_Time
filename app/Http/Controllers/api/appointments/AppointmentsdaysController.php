@@ -89,4 +89,28 @@ class AppointmentsdaysController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    public function checkLastUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => 'required|date',
+        ]);
+
+        $dbConnection = $request->get('db_connection');
+        $query = DB::connection($dbConnection);
+
+        try {
+            // Obtener el updated_at más reciente de la tabla appointments
+            $lastUpdated = $query->table('appointments')
+                ->whereDate('start_date', $validated['date'])
+                ->orderByDesc('updated_at')
+                ->value('updated_at');
+
+            return response()->json([
+                'last_updated_at' => $lastUpdated
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 }
