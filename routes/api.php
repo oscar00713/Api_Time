@@ -66,7 +66,7 @@ Route::middleware('company')->group(function () {
     Route::post('/appointmentSuggestions', [AppoimentSuggestionsController::class, 'getSuggestions']);
     Route::post('/blockAppointment', [BlockAppointmentController::class, 'manageBlock']);
     Route::post('/appointments/day', [AppointmentsdaysController::class, 'getAppointmentsByDay']);
-    Route::post('/appointments/today/check', [AppointmentsdaysController::class, 'checkLastUpdate']);
+    Route::post('/appointments/day/check', [AppointmentsdaysController::class, 'checkLastUpdate']);
     Route::post('/appointments/week', [AppointmentsweekController::class, 'getAppointmentsByWeek']);
     Route::post('/appointments/month', [AppointmentsmonthController::class, 'getAppointmentsByMonth']);
     Route::get('/appointments/byClient/{client_id}', [ByClientController::class, 'index']);
