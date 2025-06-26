@@ -20,8 +20,8 @@ class ProductsController extends Controller
         $query = DB::connection($dbConnection)->table('productos');
 
         // Filtro por categoría si viene en la petición
-        if ($request->filled('categori')) {
-            $query->where('categoria_id', $request->input('categori'));
+        if ($request->filled('category')) {
+            $query->where('categoria_id', $request->input('category'));
         }
 
         $products = $query->paginate($perPage, ['*'], 'page', $page);
@@ -94,6 +94,9 @@ class ProductsController extends Controller
             DB::connection($dbConnection)->table('variations')->where('product_id', $id)->delete();
             // Inserta las nuevas variaciones
             foreach ($variations as $variation) {
+                if (empty($variation['name'])) {
+                    return response()->json(['error' => 'Variation name is required'], 422);
+                }
                 $variation['product_id'] = $id;
                 DB::connection($dbConnection)->table('variations')->insert($variation);
             }

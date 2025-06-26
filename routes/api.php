@@ -32,6 +32,7 @@ use App\Http\Controllers\api\invitacion\UserInvitationController;
 use App\Http\Controllers\api\appointments\AppointmentsdaysController;
 use App\Http\Controllers\api\appointments\AppointmentsweekController;
 use App\Http\Controllers\api\appointments\AppointmentsmonthController;
+use App\Http\Controllers\api\appointments\AppointmentlastestController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -69,6 +70,7 @@ Route::middleware('company')->group(function () {
     Route::post('/appointments/day/check', [AppointmentsdaysController::class, 'checkLastUpdate']);
     Route::post('/appointments/week', [AppointmentsweekController::class, 'getAppointmentsByWeek']);
     Route::post('/appointments/month', [AppointmentsmonthController::class, 'getAppointmentsByMonth']);
+    Route::post('/appointments/latest', [AppointmentlastestController::class, 'index']);
     Route::get('/appointments/byClient/{client_id}', [ByClientController::class, 'index']);
     Route::get('/clients/summary/{client_id}', [ClientSummaryController::class, 'show']);
 

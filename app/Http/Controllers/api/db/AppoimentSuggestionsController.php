@@ -129,7 +129,7 @@ class AppoimentSuggestionsController extends Controller
                 $periodTry = [
                     'start' => $currentStart,
                     'end' => $currentEnd,
-                    'period' => \Carbon\CarbonPeriod::create($currentStart, $currentEnd)
+                    'period' => CarbonPeriod::create($currentStart, $currentEnd)
                 ];
 
                 $slots = [];
@@ -184,7 +184,7 @@ class AppoimentSuggestionsController extends Controller
                 $periodNext = [
                     'start' => $searchStart,
                     'end' => $searchEnd,
-                    'period' => \Carbon\CarbonPeriod::create($searchStart, $searchEnd)
+                    'period' => CarbonPeriod::create($searchStart, $searchEnd)
                 ];
                 foreach ($validated['service_id'] as $serviceId) {
                     $duration = $totalDuration[$serviceId];
@@ -308,32 +308,32 @@ class AppoimentSuggestionsController extends Controller
             ->get(['id', 'datetime_start', 'employee_id', 'service_id']);
 
         $schedules = $this->getEmployeeSchedules($query, $employeeIds, $validated['service_id']);
-        
+
         $allSlots = [];
         foreach ($validated['service_id'] as $serviceId) {
             $duration = $durations[$serviceId];
             $serviceSchedules = $schedules->where('service_id', $serviceId);
-        
+
             // Aquí está el cambio: pasar $vacationEmployeeIds a calculateAvailableSlots
             $slots = $this->calculateAvailableSlots($period, $duration, $serviceSchedules, $existingAppointments, $validated, $serviceId, $vacationEmployeeIds);
             $allSlots = array_merge($allSlots, $slots);
         }
-    
+
         // Only include taken slots if include_taken is true
         if (!empty($validated['include_taken'])) {
             $allSlots = $this->addTakenSlotsInfo($allSlots, $existingAppointments, $blockedAppointments, $vacationEmployeeIds);
         }
-    
+
         // Filter out slots in the past (only future slots)
         $now = Carbon::now();
         $allSlots = array_filter($allSlots, function ($slot) use ($now) {
             return Carbon::parse($slot['start'])->greaterThanOrEqualTo($now);
         });
-    
+
         usort($allSlots, function ($a, $b) {
             return strcmp($a['start'], $b['start']);
         });
-    
+
         return array_values($allSlots);
     }
 
@@ -421,18 +421,23 @@ class AppoimentSuggestionsController extends Controller
         // Convertir vacationEmployeeIds a enteros para comparación
         $vacationIds = array_map('intval', $vacationEmployeeIds);
         // Para el caso "now", siempre añadimos un primer slot con la hora actual
-        if ($validated['dayAndTime'] === 'now' && !$firstSlotAdded) {
-            // Primer slot basado en la hora actual
-            $firstSlotStart = $now->copy()->ceil($duration);
+        if (
+            (isset($validated['dayAndTime']) && $validated['dayAndTime'] === 'now' && !$firstSlotAdded)
+            || (isset($validated['dayAndTime']) && $validated['dayAndTime'] === 'calendar' && !$firstSlotAdded)
+        ) {
+            if ($validated['dayAndTime'] === 'calendar' && !empty($validated['calendar_date']) && !empty($validated['calendar_time'])) {
+                $firstSlotStart = Carbon::parse($validated['calendar_date'] . ' ' . $validated['calendar_time'])->ceil($duration);
+            } else {
+                $firstSlotStart = $now->copy()->ceil($duration);
+            }
             $firstSlotEnd = $firstSlotStart->copy()->addMinutes($duration);
 
-            // Añadimos el primer slot sin importar si está dentro del horario laboral
             $timeGroups[$firstSlotStart->format('Y-m-d H:i:s')] = [
                 'start' => $firstSlotStart->toDateTimeString(),
                 'end' => $firstSlotEnd->toDateTimeString(),
                 'employee_ids' => $schedules->pluck('user_id')->unique()->toArray(),
                 'service_id' => $serviceId,
-                'is_out_of_schedule' => true // Siempre marcamos el primer slot como fuera de horario
+                'is_out_of_schedule' => true
             ];
             $firstSlotAdded = true;
         }
@@ -766,20 +771,20 @@ class AppoimentSuggestionsController extends Controller
     {
         $finalSlots = [];
         $processedKeys = [];
-    
+
         // Primero procesamos los slots disponibles
         foreach ($slots as $slot) {
             $slotStart = Carbon::parse($slot['start']);
             $slotEnd = Carbon::parse($slot['end']);
             $added = false;
-    
+
             // Buscar si este slot se solapa con algún slot ocupado
             foreach ($occupiedSlots as $key => $occupiedSlot) {
                 if (isset($processedKeys[$key])) continue;
-    
+
                 $occStart = Carbon::parse($occupiedSlot['start']);
                 $occEnd = Carbon::parse($occupiedSlot['end']);
-    
+
                 // Si hay solapamiento exacto
                 if ($slotStart->eq($occStart) && $slotEnd->eq($occEnd)) {
                     // Combinar los empleados ocupados
@@ -789,17 +794,17 @@ class AppoimentSuggestionsController extends Controller
                             $occupiedSlot['occupied_employee_ids'] ?? []
                         )
                     ));
-    
+
                     // Crear un slot combinado manteniendo la estructura del slot disponible
                     $combinedSlot = $slot;
                     $combinedSlot['occupied_employee_ids'] = $combinedOccupiedIds;
-    
+
                     // AGREGAR ESTA LÍNEA: Filtrar employee_ids removiendo los ocupados
                     $combinedSlot['employee_ids'] = array_values(array_diff(
                         $slot['employee_ids'] ?? [],
                         $combinedOccupiedIds
                     ));
-    
+
                     // Combinar también los empleados bloqueados si existen
                     if (isset($occupiedSlot['blocked_employee_ids'])) {
                         $combinedSlot['blocked_employee_ids'] = array_values(array_unique(
@@ -809,14 +814,14 @@ class AppoimentSuggestionsController extends Controller
                             )
                         ));
                     }
-    
+
                     $finalSlots[] = $combinedSlot;
                     $processedKeys[$key] = true;
                     $added = true;
                     break;
                 }
             }
-    
+
             // Si no se combinó con ningún slot ocupado, añadirlo tal cual pero filtrar employee_ids
             if (!$added) {
                 // AGREGAR ESTAS LÍNEAS: Filtrar employee_ids removiendo los ocupados incluso si no hay combinación
@@ -827,10 +832,10 @@ class AppoimentSuggestionsController extends Controller
                 $finalSlots[] = $slot;
             }
         }
-    
+
         // Añadir los slots ocupados que no se hayan procesado
         $finalSlots = $this->addRemainingOccupiedSlots($finalSlots, $occupiedSlots, $processedKeys);
-    
+
         return $finalSlots;
     }
 
