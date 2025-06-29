@@ -90,16 +90,52 @@ class ProductsController extends Controller
         // Actualizar variaciones si vienen en la petición
         $variations = $request->input('variations');
         if ($variations && is_array($variations)) {
-            // Elimina las variaciones existentes para este producto
-            DB::connection($dbConnection)->table('variations')->where('product_id', $id)->delete();
-            // Inserta las nuevas variaciones
+            // Obtener variaciones actuales antes de cualquier cambio
+            $currentVariations = DB::connection($dbConnection)
+                ->table('variations')
+                ->where('product_id', $id)
+                ->get()
+                ->keyBy('id');
+
+            $sentIds = [];
             foreach ($variations as $variation) {
                 if (empty($variation['name'])) {
                     return response()->json(['error' => 'Variation name is required'], 422);
                 }
                 $variation['product_id'] = $id;
-                DB::connection($dbConnection)->table('variations')->insert($variation);
+
+                if (!empty($variation['id']) && isset($currentVariations[$variation['id']])) {
+                    // Actualizar variación existente
+                    $varId = $variation['id'];
+                    $oldVariation = $currentVariations[$varId];
+
+                    // Si el stock cambió, registrar en stock_history
+                    if (isset($variation['stock']) && $variation['stock'] != $oldVariation->stock) {
+                        DB::connection($dbConnection)->table('stock_history')->insert([
+                            'id_variacion' => $varId,
+                            'change_type' => 'adjustment',
+                            'date' => now(),
+                            'stock_from' => $oldVariation->stock,
+                            'stock_to' => $variation['stock'],
+                        ]);
+                    }
+
+                    unset($variation['id']);
+                    DB::connection($dbConnection)->table('variations')->where('id', $varId)->update($variation);
+                    $sentIds[] = $varId;
+                } else {
+                    // Insertar nueva variación
+                    unset($variation['id']);
+                    $newId = DB::connection($dbConnection)->table('variations')->insertGetId($variation);
+                    $sentIds[] = $newId;
+                }
             }
+
+            // Eliminar variaciones que no vinieron en el request
+            DB::connection($dbConnection)->table('variations')
+                ->where('product_id', $id)
+                ->whereNotIn('id', $sentIds)
+                ->delete();
         }
         return response()->json(['message' => 'success'], 200);
     }
