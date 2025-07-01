@@ -13,31 +13,62 @@ class ProductsController extends Controller
      */
     public function index(Request $request)
     {
-        $page = $request->input('page', 1);
-        $perPage = $request->input('per_page', 10);
-
         $dbConnection = $request->get('db_connection');
-        $query = DB::connection($dbConnection)->table('productos');
+        $perPage = $request->query('perPage', 10);
+        $currentPage = $request->query('page', 1);
+        $filter = $request->query('filter', []); // Puede venir como array
+        $orderBy = $filter['order_by'] ?? 'id_desc';
 
-        // Filtro por categoría si viene en la petición
+        $query = DB::connection($dbConnection)->table('productos')
+            ->select([
+                'id',
+                'name',
+                'description',
+                'code',
+                'categoria_id',
+                'expiration_date',
+                'active'
+            ]);
+
+        // Búsqueda general (por nombre o código, insensible a mayúsculas/minúsculas)
+        if (!empty($filter['all'])) {
+            $searchTerm = '%' . strtolower($filter['all']) . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                $q->whereRaw('LOWER(name) LIKE ?', [$searchTerm])
+                    ->orWhereRaw('LOWER(code) LIKE ?', [$searchTerm]);
+            });
+        }
+
+        // Filtro por categoría
         if ($request->filled('category')) {
             $query->where('categoria_id', $request->input('category'));
         }
 
-        //filtro por producto  que se pueda filtrar ya se que venga en mayúsculas o minúsculas
-
-        if ($request->filled('filter.all')) {
-            // Normalizar el filtro a minúsculas para evitar problemas de mayúsculas/minúsculas
-            $query->where(function ($q) use ($request) {
-                // Convertir a minúsculas para comparación
-                $q->whereRaw('LOWER(name) like ?', ['%' . strtolower($request->input('filter.all')) . '%'])
-                    ->orWhereRaw('LOWER(code) like ?', ['%' . strtolower($request->input('filter.all')) . '%']);
-            });
-            // Alternativamente, si quieres mantener la lógica original:
-
+        // Filtro por estado 'active'
+        if (isset($filter['active'])) {
+            $query->where('active', $filter['active']);
         }
 
-        $products = $query->paginate($perPage, ['*'], 'page', $page);
+        // Ordenamiento flexible
+        switch ($orderBy) {
+            case 'c':
+                $query->orderBy('id', 'desc');
+                break;
+            case 'creation_asc':
+                $query->orderBy('id', 'asc');
+                break;
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            default:
+                $query->orderBy('id', 'desc');
+                break;
+        }
+
+        $products = $query->paginate($perPage, ['*'], 'page', $currentPage);
 
         // Para cada producto, obtener sus variaciones
         foreach ($products as &$product) {

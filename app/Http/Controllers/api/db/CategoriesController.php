@@ -13,11 +13,20 @@ class CategoriesController extends Controller
      */
     public function index(Request $request)
     {
-
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 10);
         $dbConnection = $request->get('db_connection');
-        $categories = DB::connection($dbConnection)->table('categories')->paginate($perPage, ['*'], 'page', $page);
+        $filter = $request->query('filter', []);
+
+        $query = DB::connection($dbConnection)->table('categories');
+
+        // Búsqueda general por name (insensible a mayúsculas/minúsculas)
+        if (!empty($filter['all'])) {
+            $searchTerm = '%' . strtolower($filter['all']) . '%';
+            $query->whereRaw('LOWER(name) LIKE ?', [$searchTerm]);
+        }
+
+        $categories = $query->paginate($perPage, ['*'], 'page', $page);
         return response()->json($categories);
     }
 
