@@ -24,6 +24,19 @@ class ProductsController extends Controller
             $query->where('categoria_id', $request->input('category'));
         }
 
+        //filtro por producto  que se pueda filtrar ya se que venga en mayúsculas o minúsculas
+
+        if ($request->filled('product')) {
+            // Normalizar el filtro a minúsculas para evitar problemas de mayúsculas/minúsculas
+            $query->where(function ($q) use ($request) {
+                // Convertir a minúsculas para comparación
+                $q->whereRaw('LOWER(name) like ?', ['%' . strtolower($request->input('product')) . '%'])
+                    ->orWhereRaw('LOWER(code) like ?', ['%' . strtolower($request->input('product')) . '%']);
+            });
+            // Alternativamente, si quieres mantener la lógica original:
+
+        }
+
         $products = $query->paginate($perPage, ['*'], 'page', $page);
 
         // Para cada producto, obtener sus variaciones
