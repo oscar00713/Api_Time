@@ -26,12 +26,12 @@ class ProductsController extends Controller
 
         //filtro por producto  que se pueda filtrar ya se que venga en mayúsculas o minúsculas
 
-        if ($request->filled('product')) {
+        if ($request->filled('filter.all')) {
             // Normalizar el filtro a minúsculas para evitar problemas de mayúsculas/minúsculas
             $query->where(function ($q) use ($request) {
                 // Convertir a minúsculas para comparación
-                $q->whereRaw('LOWER(name) like ?', ['%' . strtolower($request->input('product')) . '%'])
-                    ->orWhereRaw('LOWER(code) like ?', ['%' . strtolower($request->input('product')) . '%']);
+                $q->whereRaw('LOWER(name) like ?', ['%' . strtolower($request->input('filter.all')) . '%'])
+                    ->orWhereRaw('LOWER(code) like ?', ['%' . strtolower($request->input('filter.all')) . '%']);
             });
             // Alternativamente, si quieres mantener la lógica original:
 
