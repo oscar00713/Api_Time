@@ -51,7 +51,7 @@ class ProductsController extends Controller
 
         // Ordenamiento flexible
         switch ($orderBy) {
-            case 'c':
+            case 'creation_desc':
                 $query->orderBy('id', 'desc');
                 break;
             case 'creation_asc':
