@@ -11,12 +11,33 @@ class StockHistoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(Request $request, $id)
     {
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 10);
         $dbConnection = $request->get('db_connection');
-        $stockHistory = DB::connection($dbConnection)->table('stock_history')->paginate($perPage, ['*'], 'page', $page);
+        $filter = $request->query('filter', []);
+
+        // Obtener todos los IDs de variaciones asociadas al producto
+        $variationIds = DB::connection($dbConnection)
+            ->table('variations')
+            ->where('product_id', $id)
+            ->pluck('id')
+            ->toArray();
+
+        // Construir la consulta de historial de stock
+        $query = DB::connection($dbConnection)
+            ->table('stock_history')
+            ->whereIn('id_variacion', $variationIds);
+
+        // Filtrar por change_type si viene en el filtro
+        if (!empty($filter['change_type'])) {
+            $query->where('change_type', $filter['change_type']);
+        }
+
+        $stockHistory = $query->orderBy('date', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
         return response()->json(['data' => $stockHistory]);
     }
 

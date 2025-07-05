@@ -30,13 +30,26 @@ class ProductsController extends Controller
                 'active'
             ]);
 
-        // Búsqueda general (por nombre o código, insensible a mayúsculas/minúsculas)
+        // Búsqueda general (por nombre o código de producto, o nombre de variación, insensible a mayúsculas/minúsculas)
         if (!empty($filter['all'])) {
             $searchTerm = '%' . strtolower($filter['all']) . '%';
-            $query->where(function ($q) use ($searchTerm) {
-                $q->whereRaw('LOWER(name) LIKE ?', [$searchTerm])
-                    ->orWhereRaw('LOWER(code) LIKE ?', [$searchTerm]);
-            });
+            $query->leftJoin('variations', 'productos.id', '=', 'variations.product_id')
+                ->where(function ($q) use ($searchTerm) {
+                    $q->whereRaw('LOWER(productos.name) LIKE ?', [$searchTerm])
+                        ->orWhereRaw('LOWER(productos.code) LIKE ?', [$searchTerm])
+                        ->orWhereRaw('(productos.id) LIKE ?', [$searchTerm])
+                        ->orWhereRaw('LOWER(productos.description) LIKE ?', [$searchTerm])
+                        ->orWhereRaw('LOWER(variations.name) LIKE ?', [$searchTerm]);
+                })
+                ->groupBy(
+                    'productos.id',
+                    'productos.name',
+                    'productos.description',
+                    'productos.code',
+                    'productos.categoria_id',
+                    'productos.expiration_date',
+                    'productos.active'
+                );
         }
 
         // Filtro por categoría
