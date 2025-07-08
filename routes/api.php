@@ -26,6 +26,7 @@ use App\Http\Controllers\api\email\InvitacionController;
 use App\Http\Controllers\api\db\BlockAppointmentController;
 use App\Http\Controllers\api\client\ClientSummaryController;
 use App\Http\Controllers\api\appointments\ByClientController;
+use App\Http\Controllers\api\service\ServiceSpecialController;
 use App\Http\Controllers\api\db\AppoimentSuggestionsController;
 use App\Http\Controllers\api\user_option\UserOptionsController;
 use App\Http\Controllers\api\invitacion\UserInvitationController;
@@ -73,6 +74,8 @@ Route::middleware('company')->group(function () {
     Route::post('/appointments/latest', [AppointmentlastestController::class, 'index']);
     Route::get('/appointments/byClient/{client_id}', [ByClientController::class, 'index']);
     Route::get('/clients/summary/{client_id}', [ClientSummaryController::class, 'show']);
+
+    Route::get('/openDays', [ServiceSpecialController::class, 'openDays']);
 
     Route::get('/settings', [SettingsController::class, 'getSettings']);
     Route::post('/settings', [SettingsController::class, 'updateSetting']);
