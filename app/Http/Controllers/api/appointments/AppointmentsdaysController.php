@@ -41,6 +41,7 @@ class AppointmentsdaysController extends Controller
                     'appointments.*',
                     'clients.first_name as client_first_name',
                     'clients.last_name as client_last_name',
+                    'clients.banned as client_banned',
                     'services.name as service_name',
                     'users.name as specialist_name',
                     'users.badge_color as specialist_badge_color'
