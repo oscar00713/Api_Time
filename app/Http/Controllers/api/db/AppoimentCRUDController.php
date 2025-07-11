@@ -240,7 +240,12 @@ class AppoimentCRUDController extends Controller
         }
 
         try {
+            // Determinar si estamos buscando por ID o por start_date
+
+
             $appointment = $query->table('appointments')->where('id', $id)->first();
+
+
             if (!$appointment) {
                 return response()->json(['error' => 'Cita no encontrada'], 404);
             }
@@ -266,7 +271,7 @@ class AppoimentCRUDController extends Controller
 
                 // In the update method, modify the availability check
                 $existingAppointment = $query->table('appointments')
-                    ->where('id', '!=', $id)
+                    ->where('id', '!=', $appointment->id) // Usar appointment->id en lugar de $id
                     ->where('employee_id', $employeeId)
                     ->where(function ($q) use ($startDate, $endDate) {
                         // Add 3-minute tolerance for consecutive appointments
@@ -297,6 +302,9 @@ class AppoimentCRUDController extends Controller
                     'paid'
                 ]);
             }, ARRAY_FILTER_USE_KEY);
+
+            // Siempre actualizar el campo updated_at en cualquier actualización
+            $updateData['updated_at'] = Carbon::now();
 
             // If paid status changes to true, set paid_date
             if (isset($updateData['paid']) && $updateData['paid'] && !$appointment->paid) {
@@ -339,7 +347,6 @@ class AppoimentCRUDController extends Controller
                 $updateData['user_comission_percentage_total'] = $commissionPercentageTotal;
                 $updateData['user_comission_fixed_total'] = $commissionFixedTotal;
                 $updateData['user_comission_total'] = $commissionTotal;
-                $updateData['updated_at'] = Carbon::now();
             }
 
             // En el método update, cuando creas un nuevo registro
@@ -347,10 +354,13 @@ class AppoimentCRUDController extends Controller
                 // Create new appointment with updated data
                 $newAppointmentData = array_merge((array)$appointment, $updateData);
                 $newAppointmentData['start_date'] = $request->start_date;
-                $newAppointmentData['appointment_date'] = date('Y-m-d', strtotime($request->start_date)); // Añadir esta línea
+                $newAppointmentData['appointment_date'] = date('Y-m-d', strtotime($request->start_date));
 
-                // Delete old appointment
-                $query->table('appointments')->where('start_date', $id)->delete();
+                // Asegurarse de que no se duplique el ID al insertar
+                unset($newAppointmentData['id']);
+
+                // Delete old appointment usando el ID correcto
+                $query->table('appointments')->where('id', $appointment->id)->delete();
 
                 // Insert new appointment
                 $query->table('appointments')->insert($newAppointmentData);
@@ -361,7 +371,7 @@ class AppoimentCRUDController extends Controller
                 ]);
             } else {
                 // Just update the existing appointment
-                $query->table('appointments')->where('id', $id)->update($updateData);
+                $query->table('appointments')->where('id', $appointment->id)->update($updateData);
 
                 return response()->json(['message' => 'Cita actualizada exitosamente']);
             }
@@ -376,12 +386,16 @@ class AppoimentCRUDController extends Controller
         $query = DB::connection($dbConnection);
 
         try {
-            $appointment = $query->table('appointments')->where('start_date', $id)->first();
+            // Determinar si estamos buscando por ID o por start_date
+            $appointment = $query->table('appointments')->where('id', $id)->first();
+
+
             if (!$appointment) {
                 return response()->json(['error' => 'Cita no encontrada'], 404);
             }
 
-            $query->table('appointments')->where('id', $id)->delete();
+            // Eliminar usando el ID correcto
+            $query->table('appointments')->where('id', $appointment->id)->delete();
 
             return response()->json(['message' => 'Cita eliminada exitosamente']);
         } catch (\Exception $e) {
