@@ -57,7 +57,7 @@ class ClientSummaryController extends Controller
             'first_name' => $client->first_name,
             'last_name' => $client->last_name,
             'birthday' => $client->birthday,
-            'e-mail' => $client->email,
+            'email' => $client->email,
             'phone' => $client->phone,
             'appointments_past' => $appointmentsPast,
             'total_spent' => $totalSpent,

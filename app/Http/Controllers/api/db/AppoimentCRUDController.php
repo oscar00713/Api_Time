@@ -339,6 +339,7 @@ class AppoimentCRUDController extends Controller
                 $updateData['user_comission_percentage_total'] = $commissionPercentageTotal;
                 $updateData['user_comission_fixed_total'] = $commissionFixedTotal;
                 $updateData['user_comission_total'] = $commissionTotal;
+                $updateData['updated_at'] = Carbon::now();
             }
 
             // En el método update, cuando creas un nuevo registro

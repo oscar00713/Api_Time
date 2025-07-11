@@ -81,7 +81,8 @@ Route::middleware('company')->group(function () {
     Route::post('/settings', [SettingsController::class, 'updateSetting']);
     Route::apiResource('/blockOffDays', VacacionesController::class);
     Route::apiResource('/products', ProductsController::class);
-    Route::apiResource('/stockHistory', StockHistoryController::class);
+    // Route::apiResource('/stockHistory', StockHistoryController::class);
+    Route::get('/stockHistory/{id}', [StockHistoryController::class, 'index']);
     Route::apiResource('/categories', CategoriesController::class);
     Route::apiResource('/variants', VariationsController::class);
     Route::apiResource('/history', HistoryController::class);
