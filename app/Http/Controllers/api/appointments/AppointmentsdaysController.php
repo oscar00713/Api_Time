@@ -102,13 +102,20 @@ class AppointmentsdaysController extends Controller
 
         try {
             // Obtener el updated_at más reciente de la tabla appointments
+
             $lastUpdated = $query->table('appointments')
                 ->whereDate('start_date', $validated['date'])
                 ->orderByDesc('updated_at')
                 ->value('updated_at');
 
+            //necsito enviar los datos de la tabla call pero lo que necesito que venga son los id de los apocalling: [2,5,14]
+
+            //Todo: revisar esto calling: [2,5,14] ← Los valores del array son los ID del appointment, ya que solo se esta enviado los datos de la tabla necesita discucion
+            $lastCall = $query->table('call');
+
             return response()->json([
-                'last_updated_at' => $lastUpdated
+                'last_updated_at' => $lastUpdated,
+                'Call in Screen' => $lastCall
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);

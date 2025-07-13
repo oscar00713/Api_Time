@@ -310,6 +310,14 @@ CREATE TABLE history (
     CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
+--tabla para llamar al cliente tiene que llevar  id_cliente timezone
+CREATE TABLE call (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    fecha TIMESTAMP NOT NULL,
+    CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+)
+
 -- type puede ser:
 -- "S"      -- (por ejemplo: Subject)
 -- "O"      -- (por ejemplo: Observation)
