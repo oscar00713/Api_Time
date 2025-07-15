@@ -11,6 +11,8 @@ class StockHistoryController extends Controller
     /**
      * Display a listing of the resource.
      */
+
+    //TODO: revisar esta nueva forma de mandar los datos
     public function index(Request $request, $id)
     {
         $page = $request->input('page', 1);
@@ -18,24 +20,27 @@ class StockHistoryController extends Controller
         $dbConnection = $request->get('db_connection');
         $filter = $request->query('filter', []);
 
-        // Obtener todos los IDs de variaciones asociadas al producto
-        $variationIds = DB::connection($dbConnection)
-            ->table('variations')
-            ->where('product_id', $id)
-            ->pluck('id')
-            ->toArray();
-
-        // Construir la consulta de historial de stock
+        // Construir la consulta principal con joins
         $query = DB::connection($dbConnection)
             ->table('stock_history')
-            ->whereIn('id_variacion', $variationIds);
+            ->join('variations', 'stock_history.id_variacion', '=', 'variations.id')
+            ->leftJoin('users', 'stock_history.created_by', '=', 'users.id') // Asumiendo que hay un campo created_by
+            ->where('variations.product_id', $id)
+            ->select([
+                'stock_history.*',
+                'variations.name as variation_name',
+                'variations.id as variation_id',
+                'users.name as user_name',
+                'user.id as user_id'
+            ]);
 
         // Filtrar por change_type si viene en el filtro
         if (!empty($filter['change_type'])) {
-            $query->where('change_type', $filter['change_type']);
+            $query->where('stock_history.change_type', $filter['change_type']);
         }
 
-        $stockHistory = $query->orderBy('date', 'desc')
+        // Ordenar y paginar
+        $stockHistory = $query->orderBy('stock_history.date', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json(['data' => $stockHistory]);
@@ -46,12 +51,14 @@ class StockHistoryController extends Controller
      */
     public function store(Request $request)
     {
+        $user = $request->user();
 
         $dbConnection = $request->get('db_connection');
         DB::connection($dbConnection)->table('stock_history')->insertGetId([
             'id_variacion' => $request->input('id_variacion'),
             'change_type' => $request->input('change_type'),
             'date' => $request->input('date'),
+            'user_id' => $user->id, // Asignar el ID del usuario autenticado
             'stock_from' => $request->input('stock_from'),
             'stock_to' => $request->input('stock_to'),
         ]);

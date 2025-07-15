@@ -29,22 +29,29 @@ class SearchController extends Controller
                 ]);
 
             // Filtrar por ID de cita
-            if ($request->has('id')) {
-                $appointments->where('appointments.id', $request->input('id'));
-            }
+            if ($request->has('all')) {
+                $searchTerm = $request->input('all');
 
-            // Filtrar por nombre o apellido del cliente
-            if ($request->has('client_name')) {
-                $clientName = $request->input('client_name');
-                $appointments->where(function ($q) use ($clientName) {
-                    $q->where('clients.first_name', 'ILIKE', '%' . $clientName . '%')
-                        ->orWhere('clients.last_name', 'ILIKE', '%' . $clientName . '%');
+                $appointments->where(function ($query) use ($searchTerm) {
+                    // Búsqueda por ID (exacta)
+                    if (is_numeric($searchTerm)) {
+                        $query->where('appointments.id', '=', $searchTerm);
+                    }
+
+                    // Búsqueda por fecha (si el término parece una fecha)
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $searchTerm)) {
+                        $query->orWhereDate('appointments.appointment_date', '=', $searchTerm);
+                    }
+
+                    // Búsqueda textual en múltiples campos
+                    $query->orWhere(function ($q) use ($searchTerm) {
+                        $q->where('clients.first_name', 'ILIKE', '%' . $searchTerm . '%')
+                            ->orWhere('clients.last_name', 'ILIKE', '%' . $searchTerm . '%')
+                            ->orWhere('services.name', 'ILIKE', '%' . $searchTerm . '%')
+                            ->orWhere('users.name', 'ILIKE', '%' . $searchTerm . '%')
+                            ->orWhere('appointments.status', 'ILIKE', '%' . $searchTerm . '%');
+                    });
                 });
-            }
-
-            // Filtrar por fecha de cita
-            if ($request->has('date')) {
-                $appointments->whereDate('appointments.appointment_date', $request->input('date'));
             }
 
             $appointments = $appointments->orderBy('appointments.start_date', 'desc')->get();

@@ -3,8 +3,6 @@ CREATE TABLE global_options (
 );
 
 
-
-
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -284,9 +282,11 @@ CREATE TABLE stock_history (
     id_variacion INTEGER NOT NULL,
     change_type VARCHAR(100) NOT NULL,
     date TIMESTAMP NOT NULL,
+    created_by INTEGER NOT NULL,
     stock_from INTEGER NOT NULL,
     stock_to INTEGER NOT NULL,
     CONSTRAINT fk_variacion FOREIGN KEY (id_variacion) REFERENCES variations(id) ON DELETE CASCADE
+    CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE subscription_status (
@@ -310,13 +310,21 @@ CREATE TABLE history (
     CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
---tabla para llamar al cliente tiene que llevar  id_cliente timezone
+--TODO: tabla para llamar al cliente tiene que llevar  id_cliente timezone
 CREATE TABLE call (
     id SERIAL PRIMARY KEY,
     client_id INTEGER NOT NULL,
     fecha TIMESTAMP NOT NULL,
-    CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-)
+    CONSTRAINT fk_client_id FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+);
+
+CREATE TABLE rooms (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    room_number VARCHAR(100) NOT NULL,
+    description TEXT,
+    in_use BOOLEAN DEFAULT false
+);
 
 -- type puede ser:
 -- "S"      -- (por ejemplo: Subject)
