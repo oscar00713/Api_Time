@@ -110,12 +110,12 @@ class AppointmentsdaysController extends Controller
 
             //necsito enviar los datos de la tabla call pero lo que necesito que venga son los id de los apocalling: [2,5,14]
 
-            //Todo: revisar esto calling: [2,5,14] ← Los valores del array son los ID del appointment, ya que solo se esta enviado los datos de la tabla necesita discucion
+            //TODO revisar esto calling: [2,5,14] ← Los valores del array son los ID del appointment, ya que solo se esta enviado los datos de la tabla necesita discucion
             $lastCall = $query->table('call');
 
             return response()->json([
                 'last_updated_at' => $lastUpdated,
-                'Call in Screen' => $lastCall
+                'calling' => $lastCall->pluck('appointment_id')  //[1,3,5] ← Los valores del array son los ID del appointment, ya que solo se esta enviado los datos de la tabla necesita discucion
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);

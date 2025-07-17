@@ -229,6 +229,8 @@ class SpecialistController extends Controller
      */
     public function store(Request $request)
     {
+
+        //TODO:revisar la creacion de usuarios
         $dbConnection = $request->get('db_connection');
         // Consultar datos en la conexión dinámica
         $validatedData = $request->validate([
@@ -330,29 +332,39 @@ class SpecialistController extends Controller
                 //verificar si el email ya esta en la tabla de invitaciones
                 //crear solo si tiene menos de 3 intentos
                 if (!$invitation) {
-                    Users_Invitations::create([
-                        'email' => $email,
-                        'company_id' => $companyID["id"],
-                        'attempts' => 1,
-                        'sender_id' => $user["id"],
-                        'sender_name' => $user["name"],
-                        'sender_email' => $user["email"],
-                        'last_attempt_at' => now(),
-                        'invitationtoken' => $tokenHash,
-                        'accepted' => null,
-                        'expiration' => Carbon::now()->addDays(7),
-                        'updated_at' => now(),
-                    ]);
-                    Mail::to([$email])->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
+                    ///si falla al mandar el email que no se genere el user
+                    try {
+                        Mail::to([$email])->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
+
+                        Users_Invitations::create([
+                            'email' => $email,
+                            'company_id' => $companyID["id"],
+                            'attempts' => 1,
+                            'sender_id' => $user["id"],
+                            'sender_name' => $user["name"],
+                            'sender_email' => $user["email"],
+                            'last_attempt_at' => now(),
+                            'invitationtoken' => $tokenHash,
+                            'accepted' => null,
+                            'expiration' => Carbon::now()->addDays(7),
+                            'updated_at' => now(),
+                        ]);
+                    } catch (\Exception $e) {
+                        response()->json(['error' => 'No se pudo enviar el correo: ' . $e->getMessage()], 500);
+                    }
                 } else {
                     //aumentar el attempts siempre que sea menor a 3 sino mostrar error
                     if ($invitation->attempts < 3) {
-                        Mail::to([$email])->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
-                        $invitation->attempts++;
-                        $invitation->last_attempt_at = now();
-                        $invitation->invitationtoken = $tokenHash;
-                        $invitation->accepted = null;
-                        $invitation->save();
+                        try {
+                            Mail::to([$email])->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
+                            $invitation->attempts++;
+                            $invitation->last_attempt_at = now();
+                            $invitation->invitationtoken = $tokenHash;
+                            $invitation->accepted = null;
+                            $invitation->save();
+                        } catch (\Exception $e) {
+                            return response()->json(['error' => 'No se pudo reenviar el correo: ' . $e->getMessage()], 500);
+                        }
                     }
                     //si el intento es mayor a 3 mostrar error
                     else {

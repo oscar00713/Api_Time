@@ -313,17 +313,15 @@ CREATE TABLE history (
 --TODO: tabla para llamar al cliente tiene que llevar  id_cliente timezone
 CREATE TABLE call (
     id SERIAL PRIMARY KEY,
-    client_id INTEGER NOT NULL,
+    appointment_id INTEGER NOT NULL,
     fecha TIMESTAMP NOT NULL,
-    CONSTRAINT fk_client_id FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    CONSTRAINT fk_appointment_id FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
 );
 
 CREATE TABLE rooms (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    room_number VARCHAR(100) NOT NULL,
-    description TEXT,
-    in_use BOOLEAN DEFAULT false
+    status INTEGER
 );
 
 -- type puede ser:
