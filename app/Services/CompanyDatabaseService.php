@@ -62,6 +62,9 @@ class CompanyDatabaseService
         DB::connection('dynamic_pgsql')->unprepared(
             file_get_contents(database_path('sql/SQL_company_schema.sql'))
         );
+        DB::connection('dynamic_pgsql')->unprepared(
+            file_get_contents(database_path('sql/appointments_partitions.sql'))
+        );
 
         $temp_userId = DB::connection('dynamic_pgsql')->table('users')->insertGetId([
             'central_id' => $user->id,

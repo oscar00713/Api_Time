@@ -285,7 +285,7 @@ CREATE TABLE stock_history (
     created_by INTEGER NOT NULL,
     stock_from INTEGER NOT NULL,
     stock_to INTEGER NOT NULL,
-    CONSTRAINT fk_variacion FOREIGN KEY (id_variacion) REFERENCES variations(id) ON DELETE CASCADE
+    CONSTRAINT fk_variacion FOREIGN KEY (id_variacion) REFERENCES variations(id) ON DELETE CASCADE,
     CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -311,12 +311,7 @@ CREATE TABLE history (
 );
 
 --TODO: tabla para llamar al cliente tiene que llevar  id_cliente timezone
-CREATE TABLE call (
-    id SERIAL PRIMARY KEY,
-    appointment_id INTEGER NOT NULL,
-    fecha TIMESTAMP NOT NULL,
-    CONSTRAINT fk_appointment_id FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-);
+
 
 CREATE TABLE rooms (
     id SERIAL PRIMARY KEY,
@@ -364,17 +359,28 @@ CREATE TABLE appointments (
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
     forced BOOLEAN DEFAULT false,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,  --agregar campo de cuando se actualize el appointment
-    PRIMARY KEY (appointment_date, start_date, client_id, service_id, employee_id),  -- Incluir appointment_date en la clave primaria
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id),
     CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-    CONSTRAINT fk_users FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_users FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (id, appointment_date),
+    CONSTRAINT unique_appointment UNIQUE (appointment_date, start_date, client_id, service_id, employee_id)
 ) PARTITION BY RANGE (appointment_date);
 
 CREATE TABLE appointments_default PARTITION OF appointments DEFAULT;
 -- CREATE EXTENSION IF NOT EXISTS dblink;
+CREATE TABLE call (
+    id SERIAL PRIMARY KEY,
+    appointment_id BIGINT NOT NULL,
+    appointment_date DATE NOT NULL,
+    fecha TIMESTAMP NOT NULL,
+    CONSTRAINT fk_appointment_id
+      FOREIGN KEY (appointment_id, appointment_date)
+      REFERENCES appointments(id, appointment_date)
+      ON DELETE CASCADE
+);
 
--- CREATE TABLE appointments_default PARTITION OF appointments DEFAULT;
+
 
 -- CREATE OR REPLACE FUNCTION create_partition_and_insert()
 -- RETURNS TRIGGER AS $$
