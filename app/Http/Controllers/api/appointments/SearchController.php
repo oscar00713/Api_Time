@@ -14,7 +14,7 @@ class SearchController extends Controller
     {
         $dbConnection = $request->get('db_connection');
         $query = DB::connection($dbConnection);
-
+        $searchTerm = $request->input('filter.all');
         try {
             $appointments = $query->table('appointments')
                 ->join('clients', 'appointments.client_id', '=', 'clients.id')
@@ -29,27 +29,22 @@ class SearchController extends Controller
                 ]);
 
             // Filtrar por ID de cita
-            if ($request->has('all')) {
-                $searchTerm = $request->input('all');
-
+            if ($searchTerm) {
                 $appointments->where(function ($query) use ($searchTerm) {
-                    // Búsqueda por ID (exacta)
                     if (is_numeric($searchTerm)) {
-                        $query->where('appointments.id', '=', $searchTerm);
+                        $query->where('appointments.id', $searchTerm);
                     }
 
-                    // Búsqueda por fecha (si el término parece una fecha)
                     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $searchTerm)) {
-                        $query->orWhereDate('appointments.appointment_date', '=', $searchTerm);
+                        $query->orWhereDate('appointments.appointment_date', $searchTerm);
                     }
 
-                    // Búsqueda textual en múltiples campos
                     $query->orWhere(function ($q) use ($searchTerm) {
-                        $q->where('clients.first_name', 'ILIKE', '%' . $searchTerm . '%')
-                            ->orWhere('clients.last_name', 'ILIKE', '%' . $searchTerm . '%')
-                            ->orWhere('services.name', 'ILIKE', '%' . $searchTerm . '%')
-                            ->orWhere('users.name', 'ILIKE', '%' . $searchTerm . '%')
-                            ->orWhere('appointments.status', 'ILIKE', '%' . $searchTerm . '%');
+                        $q->where('clients.first_name', 'ILIKE', "%{$searchTerm}%")
+                            ->orWhere('clients.last_name',  'ILIKE', "%{$searchTerm}%")
+                            ->orWhere('services.name',      'ILIKE', "%{$searchTerm}%")
+                            ->orWhere('users.name',         'ILIKE', "%{$searchTerm}%")
+                            ->orWhere('appointments.status', 'ILIKE', "%{$searchTerm}%");
                     });
                 });
             }
