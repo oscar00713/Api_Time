@@ -164,8 +164,8 @@ class AppoimentCRUDController extends Controller
                     'paid_date' => $request->appointment_paid ? Carbon::now() : null,
                     // 'appointment_paid_invoice_id' => $request->appointment_paid_invoice_id,
                 ];
-                // En el método store
                 $year = date('Y', strtotime($appointment['start']));
+                // Crear partición si no existe (gestionado por PartitionService)
                 $this->partitionService->ensureYearPartitionExists($year, $dbConnection);
                 // Insert each appointment
                 $query->table('appointments')->insert($appointmentData);
@@ -229,10 +229,11 @@ class AppoimentCRUDController extends Controller
 
         // Si se está cambiando el especialista, verificar permisos
         if ($request->has('employee_id')) {
-            if (!$this->authService->canAssignAppointment($user, $request->employee_id, $dbConnection)) {
+            $employeeId = $request->input('employee_id');
+            if (!$this->authService->canAssignAppointment($user, $employeeId, $dbConnection)) {
                 return response()->json([
                     'error' => 'No tienes permiso para reasignar este turno',
-                    'details' => (int)$user['id'] === $request->employee_id
+                    'details' => (int)$user['id'] === $employeeId
                         ? 'Necesitas el permiso "appointments_self_assign" para asignarte turnos a ti mismo'
                         : 'Necesitas el permiso "appointments_self_others" para asignar turnos a otros especialistas'
                 ], 403);
@@ -252,9 +253,9 @@ class AppoimentCRUDController extends Controller
 
             // Verificar disponibilidad si se cambia la fecha o el especialista
             if ($request->has('start_date') || $request->has('end_date') || $request->has('employee_id')) {
-                $startDate = $request->start_date ?? $appointment->start_date;
-                $endDate = $request->end_date ?? $appointment->end_date;
-                $employeeId = $request->employee_id ?? $appointment->employee_id;
+                $startDate = $request->input('start_date');
+                $endDate = $request->input('end_date');
+                $employeeId = $request->input('employee_id');
 
                 // Verificar si el especialista está de vacaciones en el rango solicitado
                 $vacation = $query->table('vacaciones')
@@ -351,10 +352,11 @@ class AppoimentCRUDController extends Controller
 
             // En el método update, cuando creas un nuevo registro
             if ($request->has('start_date')) {
+                $startDate = $request->input('start_date');
                 // Create new appointment with updated data
                 $newAppointmentData = array_merge((array)$appointment, $updateData);
-                $newAppointmentData['start_date'] = $request->start_date;
-                $newAppointmentData['appointment_date'] = date('Y-m-d', strtotime($request->start_date));
+                $newAppointmentData['start_date'] = $startDate;
+                $newAppointmentData['appointment_date'] = date('Y-m-d', strtotime($startDate));
 
                 // Asegurarse de que no se duplique el ID al insertar
                 unset($newAppointmentData['id']);
@@ -367,7 +369,7 @@ class AppoimentCRUDController extends Controller
 
                 return response()->json([
                     'message' => 'Cita actualizada exitosamente',
-                    'new_start_date' => $request->start_date
+                    'new_start_date' => $startDate
                 ]);
             } else {
                 // Just update the existing appointment

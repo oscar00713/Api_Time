@@ -91,5 +91,5 @@ Route::middleware('company')->group(function () {
     Route::apiResource('/categories', CategoriesController::class);
     Route::apiResource('/variants', VariationsController::class);
     Route::apiResource('/history', HistoryController::class);
-    Route::apiResource('rooms', RoomController::class);
+    Route::apiResource('/rooms', RoomController::class);
 });

@@ -334,7 +334,7 @@ class SpecialistController extends Controller
                 if (!$invitation) {
                     ///si falla al mandar el email que no se genere el user
                     try {
-                        Mail::to([$email])->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
+                        Mail::to([$email])->queue(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
 
                         Users_Invitations::create([
                             'email' => $email,
@@ -356,7 +356,7 @@ class SpecialistController extends Controller
                     //aumentar el attempts siempre que sea menor a 3 sino mostrar error
                     if ($invitation->attempts < 3) {
                         try {
-                            Mail::to([$email])->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
+                            Mail::to([$email])->queue(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
                             $invitation->attempts++;
                             $invitation->last_attempt_at = now();
                             $invitation->invitationtoken = $tokenHash;
