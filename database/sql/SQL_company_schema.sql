@@ -19,7 +19,8 @@ CREATE TABLE users (
    -- payday_type VARCHAR(100),
    -- paydar_number_of_days INTEGER,
     manage_salary BOOLEAN DEFAULT false,
-    use_room BOOLEAN DEFAULT false
+    use_room BOOLEAN DEFAULT false,
+    room_id INTEGER DEFAULT 0
 );
 
 CREATE TABLE users_temp(
