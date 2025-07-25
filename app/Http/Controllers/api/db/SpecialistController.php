@@ -246,6 +246,7 @@ class SpecialistController extends Controller
             'permissions.*' => 'nullable|in:' . implode(',', $this->allRoles),
             'use_room' => 'nullable|boolean',
             'user_type' => 'string|max:50',
+            'room_id' => 'nullable|integer|exists:rooms,id',
         ]);
         if (!$this->limitCheckService->canAddEmployee($dbConnection)) {
             return response()->json([

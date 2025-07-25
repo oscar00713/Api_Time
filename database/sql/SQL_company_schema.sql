@@ -492,3 +492,24 @@ CREATE TABLE call (
 -- $$ LANGUAGE plpgsql;
 
 --
+-- Tabla de fuentes de chat
+CREATE TABLE chat_sources (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE, -- Nombre del método (WhatsApp, email, SMS)
+    token JSON
+);
+
+-- Tabla de log de chat
+CREATE TABLE chat_log (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    method_id INTEGER NOT NULL,
+    subject VARCHAR(255),
+    specialist_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'sent', -- Estado del mensaje (sent, delivered, read, etc.)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_method FOREIGN KEY (method_id) REFERENCES chat_sources(id) ON DELETE CASCADE,
+    CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    CONSTRAINT fk_specialist FOREIGN KEY (specialist_id) REFERENCES users(id) ON DELETE CASCADE
+);

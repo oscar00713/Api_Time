@@ -16,6 +16,7 @@ use App\Http\Controllers\api\db\ProductsController;
 use App\Http\Controllers\api\db\ServicesController;
 use App\Http\Controllers\api\db\SettingsController;
 use App\Http\Controllers\api\email\EmailController;
+use App\Http\Controllers\api\db\chat\ChatController;
 use App\Http\Controllers\api\db\CategoriesController;
 use App\Http\Controllers\api\db\SpecialistController;
 use App\Http\Controllers\api\db\VacacionesController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\api\history\HistoryController;
 use App\Http\Controllers\api\CompanyEmployeesController;
 use App\Http\Controllers\api\db\AppoimentCRUDController;
 use App\Http\Controllers\api\email\InvitacionController;
+use App\Http\Controllers\api\db\chat\ChatSourceController;
 use App\Http\Controllers\api\appointments\SearchController;
 use App\Http\Controllers\api\db\BlockAppointmentController;
 use App\Http\Controllers\api\client\ClientSummaryController;
@@ -62,12 +64,22 @@ Route::get('/invitation/{hash}', [UserInvitationController::class, 'mostrarDataI
 //Route::post('/logout', [AuthController::class, 'logout']);
 
 Route::middleware('company')->group(function () {
-    Route::apiResource('/employees',  SpecialistController::class);
-    Route::apiResource('/companyUsers',  UserDBController::class);
-    Route::get('/statusCompany',  [UserController::class, 'statusCompany']);
-    Route::apiResource('/service', ServicesController::class);
-    Route::apiResource('/clients', ClientController::class);
-    Route::apiResource('/appointments', AppoimentCRUDController::class);
+    Route::apiResources([
+        'employees' => SpecialistController::class,
+        'companyUsers' => UserDBController::class,
+        'service' => ServicesController::class,
+        'clients' => ClientController::class,
+        'appointments' => AppoimentCRUDController::class,
+        'blockOffDays' => VacacionesController::class,
+        'products' => ProductsController::class,
+        'categories' => CategoriesController::class,
+        'variants' => VariationsController::class,
+        'history' => HistoryController::class,
+        'rooms' => RoomController::class,
+        'chat' => ChatController::class,
+        'chat/sources' => ChatSourceController::class,
+    ]);
+
     Route::post('/appointmentSuggestions', [AppoimentSuggestionsController::class, 'getSuggestions']);
     Route::post('/blockAppointment', [BlockAppointmentController::class, 'manageBlock']);
     Route::post('/appointments/day', [AppointmentsdaysController::class, 'getAppointmentsByDay']);
@@ -84,12 +96,6 @@ Route::middleware('company')->group(function () {
 
     Route::get('/settings', [SettingsController::class, 'getSettings']);
     Route::post('/settings', [SettingsController::class, 'updateSetting']);
-    Route::apiResource('/blockOffDays', VacacionesController::class);
-    Route::apiResource('/products', ProductsController::class);
     // Route::apiResource('/stockHistory', StockHistoryController::class);
     Route::get('/stockHistory/{id}', [StockHistoryController::class, 'index']);
-    Route::apiResource('/categories', CategoriesController::class);
-    Route::apiResource('/variants', VariationsController::class);
-    Route::apiResource('/history', HistoryController::class);
-    Route::apiResource('/rooms', RoomController::class);
 });

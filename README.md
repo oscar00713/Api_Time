@@ -1,68 +1,178 @@
-
 <p align="center"><h1>Timeboard FREE API</h1></p>
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## RoomController
 
-## About Laravel
+El `RoomController` gestiona la administración de salas (rooms) en la API. Permite listar, crear, consultar, actualizar y eliminar salas usando una conexión dinámica a la base de datos.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Endpoints y funcionalidades
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+-   **GET /rooms**
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+    -   Lista todas las salas existentes.
+    -   Parámetro opcional: `db_connection` para seleccionar la base de datos.
+    -   Respuesta: JSON con el listado de salas.
 
-## Learning Laravel
+-   **POST /rooms**
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+    -   Crea una nueva sala.
+    -   Requiere en el body:
+        -   `name` (string, requerido, único)
+        -   `status` (entero, opcional)
+    -   Valida que el nombre no se repita.
+    -   Respuesta: JSON con el ID de la sala creada y mensaje de éxito.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+-   **GET /rooms/{id}**
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+    -   Consulta los datos de una sala específica por su ID.
+    -   Respuesta: JSON con los datos de la sala o error si no existe.
 
-## Laravel Sponsors
+-   **PUT /rooms/{id}**
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+    -   Actualiza los datos de una sala existente.
+    -   Permite modificar `name` (único) y `status`.
+    -   Respuesta: Mensaje de éxito o error si no existe o no hay cambios.
 
-### Premium Partners
+-   **DELETE /rooms/{id}**
+    -   Elimina una sala por su ID.
+    -   Respuesta: Mensaje de éxito o error si no existe.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+### Validaciones
 
-## Contributing
+-   El campo `name` es obligatorio y único.
+-   El campo `status` es opcional y debe ser un entero.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Ejemplo de uso (JSON)
 
-## Code of Conduct
+```json
+POST /rooms
+{
+  "name": "Sala 1",
+  "status": 1,
+  "db_connection": "nombre_conexion"
+}
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Notas
 
-## Security Vulnerabilities
+-   Todos los métodos usan la conexión dinámica recibida en el parámetro `db_connection`.
+-   Las respuestas de error incluyen el mensaje de excepción si ocurre algún problema en la base de datos.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## ChatController
 
-## License
+El `ChatController` permite gestionar el historial de mensajes de chat entre clientes y especialistas, así como las fuentes/métodos de chat (WhatsApp, email, SMS, etc.). Utiliza la conexión dinámica recibida en `db_connection`.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Endpoints y funcionalidades
+
+-   **GET /chat**
+
+    -   Lista todos los mensajes de chat registrados.
+    -   Parámetro opcional: `db_connection`.
+    -   Respuesta: JSON con el listado de mensajes.
+
+-   **POST /chat**
+
+    -   Crea un nuevo mensaje de chat.
+    -   Requiere en el body:
+        -   `client_id` (entero, requerido)
+        -   `method_id` (entero, requerido, referencia a chat_sources)
+        -   `subject` (string, opcional)
+        -   `specialist_id` (entero, requerido)
+        -   `content` (string, requerido)
+        -   `status` (string, opcional)
+    -   Respuesta: JSON con el ID del mensaje creado y mensaje de éxito.
+
+-   **GET /chat/{id}**
+
+    -   Consulta los datos de un mensaje específico por su ID.
+    -   Respuesta: JSON con los datos del mensaje o error si no existe.
+
+-   **PUT /chat/{id}**
+
+    -   Actualiza los datos de un mensaje existente.
+    -   Permite modificar `subject`, `content` y `status`.
+    -   Respuesta: Mensaje de éxito o error si no existe o no hay cambios.
+
+-   **DELETE /chat/{id}**
+
+    -   Elimina un mensaje por su ID.
+    -   Respuesta: Mensaje de éxito o error si no existe.
+
+-   **GET /chat/sources**
+    -   Lista todos los métodos/fuentes de chat disponibles (WhatsApp, email, etc.).
+    -   Respuesta: JSON con el listado de fuentes.
+
+### Tablas relacionadas
+
+-   **chat_sources**: Métodos/fuentes de chat (WhatsApp, email, SMS, etc.)
+-   **chat_log**: Historial de mensajes de chat
+
+### Ejemplo de uso (JSON)
+
+```json
+POST /chat
+{
+  "client_id": 1,
+  "method_id": 2,
+  "subject": "Consulta",
+  "specialist_id": 5,
+  "content": "Hola, ¿cómo puedo reservar?",
+  "status": "sent",
+  "db_connection": "nombre_conexion"
+}
+```
+
+### Notas
+
+-   Todos los métodos usan la conexión dinámica recibida en el parámetro `db_connection`.
+-   Las respuestas de error incluyen el mensaje de excepción si ocurre algún problema en la base de datos.
+
+## ChatSourceController
+
+El `ChatSourceController` permite gestionar las fuentes o métodos de chat (WhatsApp, email, SMS, etc.) de forma dinámica.
+
+### Endpoints y funcionalidades
+
+-   **GET /chat-sources**
+
+    -   Lista todas las fuentes de chat registradas.
+    -   Parámetro opcional: `db_connection`.
+    -   Respuesta: JSON con el listado de fuentes.
+
+-   **POST /chat-sources**
+
+    -   Crea una nueva fuente de chat.
+    -   Requiere en el body:
+        -   `name` (string, requerido, único)
+        -   `token` (json, opcional)
+    -   Respuesta: JSON con el ID de la fuente creada y mensaje de éxito.
+
+-   **GET /chat-sources/{id}**
+
+    -   Consulta los datos de una fuente específica por su ID.
+    -   Respuesta: JSON con los datos de la fuente o error si no existe.
+
+-   **PUT /chat-sources/{id}**
+
+    -   Actualiza los datos de una fuente existente.
+    -   Permite modificar `name` y `token`.
+    -   Respuesta: Mensaje de éxito o error si no existe o no hay cambios.
+
+-   **DELETE /chat-sources/{id}**
+    -   Elimina una fuente por su ID.
+    -   Respuesta: Mensaje de éxito o error si no existe.
+
+### Ejemplo de uso (JSON)
+
+```json
+POST /chat-sources
+{
+  "name": "WhatsApp",
+  "token": {"api_key": "123456"},
+  "db_connection": "nombre_conexion"
+}
+```
+
+### Notas
+
+-   Todos los métodos usan la conexión dinámica recibida en el parámetro `db_connection`.
+-   Las respuestas de error incluyen el mensaje de excepción si ocurre algún problema en la base de datos.
