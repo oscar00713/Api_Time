@@ -80,6 +80,8 @@ Route::middleware('company')->group(function () {
         'chat/sources' => ChatSourceController::class,
     ]);
 
+    Route::get('/statusCompany',  [UserController::class, 'statusCompany']);
+
     Route::post('/appointmentSuggestions', [AppoimentSuggestionsController::class, 'getSuggestions']);
     Route::post('/blockAppointment', [BlockAppointmentController::class, 'manageBlock']);
     Route::post('/appointments/day', [AppointmentsdaysController::class, 'getAppointmentsByDay']);
