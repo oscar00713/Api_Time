@@ -320,7 +320,7 @@ CREATE TABLE rooms (
     status INTEGER
 );
 
-# insertar un room por defecto
+-- insertar un room por defecto
 INSERT INTO rooms (name, status) VALUES ('Room 1', 0);
 
 -- type puede ser:
