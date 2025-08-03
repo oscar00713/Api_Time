@@ -31,7 +31,7 @@ class RoomController extends Controller
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-            'name' => 'required|string|max:100|unique:rooms',
+            'name' => 'required|string',
             'status' => 'nullable|integer',
         ]);
 
