@@ -12,6 +12,7 @@ use App\Models\Users_Invitations;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 use App\Services\LimitCheckService;
@@ -271,7 +272,8 @@ class SpecialistController extends Controller
         }
 
 
-        $user = $request->user;
+        // Obtener usuario autenticado correctamente
+        $user = $request->input('user');
         if (empty($validatedData['email'])) {
             return response()->json(['error' => 'email_required'], 409);
         }
@@ -288,7 +290,7 @@ class SpecialistController extends Controller
             //verificar si ya hay una invitacion para el mismo email
             $invitation = Users_Invitations::where('email', $validatedData['email'])->where('company_id', $companyID["id"])->first();
             if ($invitation) {
-                return response()->json(['error' => 'repeated'], 409);
+                return response()->json(['error' => 'repeated1'], 409);
             }
 
 
@@ -303,83 +305,71 @@ class SpecialistController extends Controller
                 $companyName = $companyID["name"];
 
 
-                $userId = DB::connection($dbConnection)->table('users_temp')->insertGetId([
-                    'name' => $validatedData['name'],
-                    'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
-                    'user_type' => 'invitation',
-                    'email' => strtolower($validatedData['email']),
-                    'badge_color' => $validatedData['badge_color'],
-                    'active' => false,
-                    'phone' => $validatedData['phone'] ?? '',
-                    'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
-                    'manage_salary' => $validatedData['manage_salary'] ?? false,
-                    'use_room' => $validatedData['use_room'] ?? false,
-                    'registration' => $validatedData['registration'] ?? '',
-                    'roles' =>  json_encode(
-                        $validatedData['permissions']
-                    ) ?? json_encode([])
-                ]);
-                // Construir datos de roles
-                // $rolesFromRequest = $validatedData['permissions'] ?? [];
-                // $rolesData = ['user_id' => $userId];
-
-                // foreach ($this->allRoles as $role) {
-                //     $rolesData[$role] = in_array($role, $rolesFromRequest);
-                // }
-
-                // Crear los roles del usuario con el ID obtenido directamente
-                // DB::connection($dbConnection)->table('roles')->insert($rolesData);
-
                 //verificar si el email ya esta en la tabla de invitaciones
                 //crear solo si tiene menos de 3 intentos
                 if (!$invitation) {
-                    ///si falla al mandar el email que no se genere el user
-                    try {
-                        Mail::to([$email])->queue(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
 
-                        Users_Invitations::create([
-                            'email' => $email,
-                            'company_id' => $companyID["id"],
-                            'attempts' => 1,
-                            'sender_id' => $user["id"],
-                            'sender_name' => $user["name"],
-                            'sender_email' => $user["email"],
-                            'last_attempt_at' => now(),
-                            'invitationtoken' => $tokenHash,
-                            'accepted' => null,
-                            'expiration' => Carbon::now()->addDays(7),
-                            'updated_at' => now(),
+                    try {
+                        Mail::to($email)->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
+
+                        // Crear el usuario en la tabla users_temp solo si el correo se envía correctamente
+                        $userId = DB::connection($dbConnection)->table('users_temp')->insertGetId([
+                            'name' => $validatedData['name'],
+                            'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
+                            'user_type' => 'invitation',
+                            'email' => strtolower($validatedData['email']),
+                            'badge_color' => $validatedData['badge_color'],
+                            'active' => false,
+                            'phone' => $validatedData['phone'] ?? '',
+                            'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
+                            'manage_salary' => $validatedData['manage_salary'] ?? false,
+                            'use_room' => $validatedData['use_room'] ?? false,
+                            'registration' => $validatedData['registration'] ?? '',
+                            'roles' =>  json_encode(
+                                $validatedData['permissions']
+                            ) ?? json_encode([])
                         ]);
                     } catch (\Exception $e) {
-                        response()->json(['error' => 'No se pudo enviar el correo: ' . $e->getMessage()], 500);
+
+                        return response()->json(['error' => 'No se pudo enviar el correo: ' . $e->getMessage()], 500);
                     }
                 } else {
                     //aumentar el attempts siempre que sea menor a 3 sino mostrar error
                     if ($invitation->attempts < 3) {
+                        // Registrar intento de reenvío de invitación
+                        Log::channel('email')->info('Intento de reenvío de invitación', [
+                            'email' => $email,
+                            'invitation_url' => $invitationUrl,
+                        ]);
                         try {
-                            Mail::to([$email])->queue(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
-                            $invitation->attempts++;
-                            $invitation->last_attempt_at = now();
-                            $invitation->invitationtoken = $tokenHash;
-                            $invitation->accepted = null;
-                            $invitation->save();
+                            Mail::to($email)->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
                         } catch (\Exception $e) {
+
                             return response()->json(['error' => 'No se pudo reenviar el correo: ' . $e->getMessage()], 500);
                         }
                     }
                     //si el intento es mayor a 3 mostrar error
-                    else {
-                        return response()->json(['error' => 'error'], 409);
+                    try {
+                        Mail::to($email)->send(new InvitationMail($invitationUrl, $sender, $senderEmail, $companyName));
+                    } catch (\Exception $e) {
+                        // Eliminar usuario temporal si falla envío de correo
+                        if (isset($userId)) {
+                            DB::connection($dbConnection)->table('users_temp')->where('id', $userId)->delete();
+                        }
+                        Log::channel('email')->error('Error al enviar correo de invitación', [
+                            'error' => $e->getMessage(),
+                            'email' => $email,
+                        ]);
+                        return response()->json(['error' => 'No se pudo enviar el correo: ' . $e->getMessage()], 500);
                     }
                 }
-            } else {
-                return response()->json(['error' => 'repeated'], 409);
             }
 
             DB::commit();
             return response()->json(['message' => 'ok'], 201);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'error' . $e->getMessage()], 500);
+            DB::rollBack();
+            return response()->json(['error' => 'error1'], 500);
         }
     }
 

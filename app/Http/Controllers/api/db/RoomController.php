@@ -72,12 +72,18 @@ class RoomController extends Controller
     public function update(Request $request, string $id)
     {
         $validatedData = $request->validate([
-            'name' => 'nullable|string|max:100|unique:rooms,name,' . $id,
+            'name' => 'nullable|string',
             'status' => 'nullable|integer',
         ]);
 
         $dbConnection = $request->get('db_connection');
         $query = DB::connection($dbConnection);
+
+        // Check if the room exists before updating
+        $roomExists = $query->table('rooms')->where('id', $id)->exists();
+        if (!$roomExists) {
+            return response()->json(['error' => 'Room not found'], 404);
+        }
 
         try {
             $updated = $query->table('rooms')->where('id', $id)->update(array_merge($validatedData, [

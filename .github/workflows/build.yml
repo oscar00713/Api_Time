@@ -27,12 +27,12 @@ jobs:
           --exclude=vendor/ \
           --exclude=database/*.sqlite \
           $GITHUB_WORKSPACE/ /var/www/api.timeboard.live/
-      - name: Aplicando comandos de Laravel
-        working-directory: /var/www/api.timeboard.live
-        run: |
-          php artisan migrate:fresh
-          php artisan route:cache
-          php artisan config:cache
+      # - name: Aplicando comandos de Laravel
+      #   working-directory: /var/www/api.timeboard.live
+      #   run: |
+      #     php artisan migrate:fresh
+      #     php artisan route:cache
+      #     php artisan config:cache
       - name: Ajustar permisos
         run: |
           sudo chown -R www-data:www-data /var/www/api.timeboard.live/storage /var/www/api.timeboard.live/bootstrap/cache
