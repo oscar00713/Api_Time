@@ -24,10 +24,10 @@ class AppoimentSuggestionsController extends Controller
                 'service_id.*' => 'integer',
                 'employee_id' => 'array',
                 'employee_id.*' => 'integer',
-                'dayAndTime' => 'required|string',
+                'dayAndTime' => 'required|in:now,calendar',
                 'group_consecutives' => 'boolean',
-                'calendar_date' => 'date|nullable',
-                'calendar_time' => 'date_format:H:i|nullable',
+                'calendar_date' => 'required_if:dayAndTime,calendar|date',
+                'calendar_time' => 'required_if:dayAndTime,calendar|date_format:H:i',
                 'include_taken' => 'boolean',
                 'appointment_duration_minutes' => 'nullable' // Modified to accept any type
             ]);
@@ -81,30 +81,12 @@ class AppoimentSuggestionsController extends Controller
                 return response()->json(['message' => 'No hay empleados disponibles'], 404);
             }
 
-            // =================== NUEVO BLOQUE ===================
-            // Leer settings para date_limit
-            $settings = $query->table('settings')->pluck('value', 'name')->toArray();
-            $dateLimitEnabled = isset($settings['date_limit']) && ($settings['date_limit'] === 'true' || $settings['date_limit'] === 1 || $settings['date_limit'] === true);
-            $dateLimitType = $settings['date_limit_type'] ?? null;
-            $dateLimitValue = $settings['date_limit_value'] ?? null;
-
+            // Configurar límite de fecha desde settings
+            [$dateLimitEnabled, $limitEnd] = $this->getDateLimit($query);
             $minSlots = 30;
             $maxTries = 10;
             $allSlots = [];
             $period = $this->getDateRange($validated);
-
-            // Si hay date_limit y está activo, calcular el límite
-            $limitEnd = null;
-            $limitEnd = null;
-            if ($dateLimitEnabled) {
-                if ($dateLimitType === 'specific' && $dateLimitValue) {
-                    // Si es una fecha específica, parsear como fecha
-                    $limitEnd = \Carbon\Carbon::parse($dateLimitValue);
-                } elseif ($dateLimitType === 'automatic' && is_numeric($dateLimitValue)) {
-                    // Si es automático y es un número de días, sumar días a la fecha actual
-                    $limitEnd = \Carbon\Carbon::now()->addDays((int)$dateLimitValue);
-                }
-            }
 
             // Si hay date_limit y el rango solicitado excede el límite, no mostrar nada
             if ($dateLimitEnabled && $limitEnd && $period['start']->gt($limitEnd)) {
@@ -131,6 +113,12 @@ class AppoimentSuggestionsController extends Controller
                     'end' => $currentEnd,
                     'period' => CarbonPeriod::create($currentStart, $currentEnd)
                 ];
+                // Cargar citas existentes una sola vez para este rango
+                $appointmentsCollection = $query->table('appointments')
+                    ->whereIn('employee_id', $employees->pluck('id'))
+                    ->where('status', '!=', 4)
+                    ->whereBetween('start_date', [$currentStart, $currentEnd])
+                    ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']);
 
                 $slots = [];
                 foreach ($validated['service_id'] as $serviceId) {
@@ -140,11 +128,7 @@ class AppoimentSuggestionsController extends Controller
                         $periodTry,
                         $duration,
                         $serviceSchedules,
-                        $query->table('appointments')
-                            ->whereIn('employee_id', $employees->pluck('id'))
-                            ->where('status', '!=', 4)
-                            ->whereBetween('start_date', [$currentStart, $currentEnd])
-                            ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']),
+                        $appointmentsCollection,
                         $validated,
                         $serviceId
                     ));
@@ -186,6 +170,12 @@ class AppoimentSuggestionsController extends Controller
                     'end' => $searchEnd,
                     'period' => CarbonPeriod::create($searchStart, $searchEnd)
                 ];
+                // Cargar citas en el rango next una sola vez
+                $appointmentsNext = $query->table('appointments')
+                    ->whereIn('employee_id', $employees->pluck('id'))
+                    ->where('status', '!=', 4)
+                    ->whereBetween('start_date', [$searchStart, $searchEnd])
+                    ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']);
                 foreach ($validated['service_id'] as $serviceId) {
                     $duration = $totalDuration[$serviceId];
                     $serviceSchedules = $this->getEmployeeSchedules($query, $employees->pluck('id'), [$serviceId]);
@@ -193,11 +183,7 @@ class AppoimentSuggestionsController extends Controller
                         $periodNext,
                         $duration,
                         $serviceSchedules,
-                        $query->table('appointments')
-                            ->whereIn('employee_id', $employees->pluck('id'))
-                            ->where('status', '!=', 4)
-                            ->whereBetween('start_date', [$searchStart, $searchEnd])
-                            ->get(['start_date', 'end_date', 'employee_id as user_id', 'service_id']),
+                        $appointmentsNext,
                         $validated,
                         $serviceId
                     );
@@ -250,6 +236,25 @@ class AppoimentSuggestionsController extends Controller
     }
 
     // ================ Helper Methods ================ //
+    /**
+     * Leer settings de date_limit y calcular límite de fecha
+     * @param \Illuminate\Database\Connection $query
+     * @return array [bool enabled, Carbon|null limitEnd]
+     */
+    private function getDateLimit($query): array
+    {
+        $settings = $query->table('settings')->pluck('value', 'name')->toArray();
+        $enabled = isset($settings['date_limit']) && in_array($settings['date_limit'], ['true', 1, true], true);
+        $limitEnd = null;
+        if ($enabled) {
+            if (($settings['date_limit_type'] ?? '') === 'specific' && !empty($settings['date_limit_value'])) {
+                $limitEnd = Carbon::parse($settings['date_limit_value']);
+            } elseif (($settings['date_limit_type'] ?? '') === 'automatic' && is_numeric($settings['date_limit_value'] ?? null)) {
+                $limitEnd = Carbon::now()->addDays((int)$settings['date_limit_value']);
+            }
+        }
+        return [$enabled, $limitEnd];
+    }
 
     private function getTotalDuration($query, array $serviceIds, ?array $customDurations = null): array
     {
@@ -465,7 +470,7 @@ class AppoimentSuggestionsController extends Controller
                 if (
                     !$foundWorkingDay &&
                     !$date->isSameDay($period['start']) &&
-                    in_array($validated['dayAndTime'], ['now', 'about_now', '1hour'])
+                    $validated['dayAndTime'] === 'now'
                 ) {
                     // Reemplazar el período original con uno que comience en este día laborable
                     $period['start'] = $date->copy()->startOfDay();
