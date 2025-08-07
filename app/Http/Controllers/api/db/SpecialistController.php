@@ -400,7 +400,9 @@ class SpecialistController extends Controller
             'permissions' => 'nullable|array', // Validación para permisos
             'permissions.*' => 'nullable|in:' . implode(',', $this->allRoles),
             'use_room' => 'nullable|boolean',
-            'registration' => 'nullable|string|max:50'
+            'registration' => 'nullable|string|max:50',
+            'room_id' => 'nullable|integer',
+
         ]);
 
 
@@ -432,6 +434,7 @@ class SpecialistController extends Controller
                 'manage_salary' => $validatedData['manage_salary'] ?? false,
                 'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
                 'use_room' => $validatedData['use_room'] ?? false,
+                'room_id' => $validatedData['room_id'] ?? 1,
                 'registration' => $validatedData['registration'] ?? ''
             ]);
             // Procesar permisos
@@ -458,6 +461,7 @@ class SpecialistController extends Controller
                 'manage_salary' => $validatedData['manage_salary'] ?? false,
                 'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
                 'use_room' => $validatedData['use_room'] ?? false,
+                'room_id' => $validatedData['room_id'] ?? 1,
                 'registration' => $validatedData['registration'] ?? '',
 
             ]);

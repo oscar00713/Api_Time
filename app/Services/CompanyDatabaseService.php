@@ -73,6 +73,7 @@ class CompanyDatabaseService
             'user_type' => 'user',
             'hash' => $user->hash,
             'active' => true,
+            'room_id' => 1, // Asignar un valor por defecto para room_id
         ]);
 
         //tambien agregar los roles de la compañía
