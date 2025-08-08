@@ -109,11 +109,7 @@ class AppointmentsdaysController extends Controller
                 ->value('updated_at');
 
             // Obtener appointment_id de llamadas previas a hace 2 minutos en la fecha solicitada
-            $calling = $query->table('call')
-                ->whereDate('fecha', $validated['date'])
-                ->where('fecha', '<', now()->subMinutes(2))
-                ->orderByDesc('fecha')
-                ->pluck('appointment_id');
+            $calling = $query->table('`call`')->pluck('appointment_id')->toArray();
 
             return response()->json([
                 'last_updated_at' => $lastUpdated,
