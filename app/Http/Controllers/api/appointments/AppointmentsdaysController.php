@@ -108,22 +108,16 @@ class AppointmentsdaysController extends Controller
                 ->orderByDesc('updated_at')
                 ->value('updated_at');
 
-            //necsito enviar los datos de la tabla call pero lo que necesito que venga son los id de los apocalling: [2,5,14]
-
-            //TODO revisar esto calling: [2,5,14] ← Los valores del array son los ID del appointment, ya que solo se esta enviado los datos de la tabla necesita discucion
-            $lastCall = $query->table('call');
-
-            //borrar de la tabla call los datos que tengan el valor de fecha que haya pasado 2 minutos pero de su propia fecha creada
-            $lastCall = $lastCall->whereDate('fecha', $validated['date']);
-            $lastCall = $lastCall->orderByDesc('fecha');
-            $lastCall = $lastCall->get();
-            // Eliminar los registros de la tabla call que tengan fecha anterior a 2 minutos
-            // Esto asume que 'fecha' es el campo de fecha en la tabla 'call
-            $lastCall = $lastCall->where('fecha', '<', now()->subMinutes(2));
+            // Obtener appointment_id de llamadas previas a hace 2 minutos en la fecha solicitada
+            $calling = $query->table('call')
+                ->whereDate('fecha', $validated['date'])
+                ->where('fecha', '<', now()->subMinutes(2))
+                ->orderByDesc('fecha')
+                ->pluck('appointment_id');
 
             return response()->json([
                 'last_updated_at' => $lastUpdated,
-                'calling' => $lastCall->pluck('appointment_id')  //[1,3,5] ← Los valores del array son los ID del appointment, ya que solo se esta enviado los datos de la tabla necesita discucion
+                'calling' => $calling
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
