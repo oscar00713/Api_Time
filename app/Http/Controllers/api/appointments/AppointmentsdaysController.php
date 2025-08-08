@@ -113,8 +113,13 @@ class AppointmentsdaysController extends Controller
             //TODO revisar esto calling: [2,5,14] ← Los valores del array son los ID del appointment, ya que solo se esta enviado los datos de la tabla necesita discucion
             $lastCall = $query->table('call');
 
-            //borrar de la tabla call los datos que tengan el valor de fecha que haya pasado 2 minutos
-            $lastCall->where('fecha', '<', now()->subMinutes(2))->delete();
+            //borrar de la tabla call los datos que tengan el valor de fecha que haya pasado 2 minutos pero de su propia fecha creada
+            $lastCall = $lastCall->whereDate('fecha', $validated['date']);
+            $lastCall = $lastCall->orderByDesc('fecha');
+            $lastCall = $lastCall->get();
+            // Eliminar los registros de la tabla call que tengan fecha anterior a 2 minutos
+            // Esto asume que 'fecha' es el campo de fecha en la tabla 'call
+            $lastCall = $lastCall->where('fecha', '<', now()->subMinutes(2));
 
             return response()->json([
                 'last_updated_at' => $lastUpdated,
