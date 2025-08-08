@@ -93,7 +93,7 @@ Route::middleware('company')->group(function () {
     Route::get('/clients/summary/{client_id}', [ClientSummaryController::class, 'show']);
 
     Route::get('/openDays', [ServiceSpecialController::class, 'openDays']);
-    Route::post('/call/{id}', [CallController::class, 'callClient']);
+    Route::post('/call', [CallController::class, 'callClient']);
     Route::get('/searchAppointment', [SearchController::class, 'index']);
 
     Route::get('/settings', [SettingsController::class, 'getSettings']);

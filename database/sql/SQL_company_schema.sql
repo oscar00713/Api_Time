@@ -19,7 +19,6 @@ CREATE TABLE users (
    -- payday_type VARCHAR(100),
    -- paydar_number_of_days INTEGER,
     manage_salary BOOLEAN DEFAULT false,
-    use_room BOOLEAN DEFAULT false,
     room_id INTEGER DEFAULT 1
 );
 
@@ -377,7 +376,7 @@ CREATE TABLE call (
     id SERIAL PRIMARY KEY,
     appointment_id BIGINT NOT NULL,
     appointment_date DATE NOT NULL,
-    fecha TIMESTAMP NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_appointment_id
       FOREIGN KEY (appointment_id, appointment_date)
       REFERENCES appointments(id, appointment_date)

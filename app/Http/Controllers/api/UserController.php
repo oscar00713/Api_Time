@@ -90,9 +90,13 @@ class UserController extends Controller
             // Acceder al ID correctamente (array en lugar de objeto)
             $companyRole = $connection->table('roles')->where('user_id', $user['id'])->first();
 
+            //TODO enviar el room del usuario se llamara start{room_id}
+
+
             return response()->json([
                 'permissions' => $companyRole ?? null,
-                'success' => true
+                'success' => true,
+                'start' => $user['room_id'] ?? null,
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
