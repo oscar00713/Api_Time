@@ -99,17 +99,23 @@ class AppointmentsdaysController extends Controller
 
         $dbConnection = $request->get('db_connection');
         $query = DB::connection($dbConnection);
-
         try {
             // Obtener el updated_at más reciente de la tabla appointments
-
             $lastUpdated = $query->table('appointments')
                 ->whereDate('start_date', $validated['date'])
                 ->orderByDesc('updated_at')
                 ->value('updated_at');
 
-            // Obtener appointment_id de llamadas previas a hace 2 minutos en la fecha solicitada
-            $calling = $query->table('`call`')->pluck('appointment_id')->toArray();
+            // Obtener appointment_id de llamadas creadas hace menos de 2 minutos desde su propia fecha
+            $calling = $query->table('calls')
+                ->whereRaw("EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha)) <= 120")
+                ->pluck('appointment_id')
+                ->toArray();
+
+            // Eliminar registros de calls cuya fecha sea mayor a 2 minutos desde su propia fecha
+            $query->table('calls')
+                ->whereRaw("EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha)) > 120")
+                ->delete();
 
             return response()->json([
                 'last_updated_at' => $lastUpdated,

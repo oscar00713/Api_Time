@@ -372,7 +372,7 @@ CREATE TABLE appointments (
 
 CREATE TABLE appointments_default PARTITION OF appointments DEFAULT;
 -- CREATE EXTENSION IF NOT EXISTS dblink;
-CREATE TABLE call (
+CREATE TABLE calls (
     id SERIAL PRIMARY KEY,
     appointment_id BIGINT NOT NULL,
     appointment_date DATE NOT NULL,

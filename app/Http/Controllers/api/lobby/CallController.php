@@ -19,7 +19,7 @@ class CallController extends Controller
         // Aquí puedes realizar la lógica para llamar al cliente con el ID proporcionado
         $dbConnection = $request->get('db_connection');
         $query = DB::connection($dbConnection);
-        $query->table('call')->insert([
+        $query->table('calls')->insert([
             'appointment_id' => $appointmentId,
             'appointment_date' => $appointmentDate,
         ]);
