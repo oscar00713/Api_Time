@@ -106,15 +106,15 @@ class AppointmentsdaysController extends Controller
                 ->orderByDesc('updated_at')
                 ->value('updated_at');
 
-            // Obtener appointment_id de llamadas creadas hace menos de 2 minutos desde su propia fecha
+            // Obtener appointment_id de llamadas creadas hace menos de 13 segundos desde su propia fecha
             $calling = $query->table('calls')
-                ->whereRaw("EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha)) <= 120")
+                ->whereRaw("EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha)) <= 13")
                 ->pluck('appointment_id')
                 ->toArray();
 
             // Eliminar registros de calls cuya fecha sea mayor a 2 minutos desde su propia fecha
             $query->table('calls')
-                ->whereRaw("EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha)) > 120")
+                ->whereRaw("EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha)) > 13")
                 ->delete();
 
             return response()->json([
