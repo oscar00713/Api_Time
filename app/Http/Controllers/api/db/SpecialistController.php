@@ -152,6 +152,7 @@ class SpecialistController extends Controller
                 'users_temp.fixed_salary',
                 'users_temp.badge_color',
                 'users_temp.fixed_salary_frecuency',
+                DB::raw('NULL AS room_id'),
                 'users_temp.manage_salary',
                 DB::raw("
                 (
