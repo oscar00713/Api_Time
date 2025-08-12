@@ -82,6 +82,7 @@ class SpecialistController extends Controller
                     'users.fixed_salary',
                     'users.badge_color',
                     'users.fixed_salary_frecuency',
+                    'users.room_id',
                     DB::raw('NULL::BOOLEAN as manage_salary'),
                     DB::raw('NULL::BOOLEAN as use_room'),
                     DB::raw('json_agg(roles.*)::json as roles')
@@ -130,6 +131,7 @@ class SpecialistController extends Controller
                 'users.fixed_salary',
                 'users.badge_color',
                 'users.fixed_salary_frecuency',
+                'users.room_id',
                 DB::raw('NULL::BOOLEAN as manage_salary'),
                 DB::raw('NULL::BOOLEAN as use_room'),
                 DB::raw('json_agg(roles.*)::json as roles')
@@ -151,7 +153,7 @@ class SpecialistController extends Controller
                 'users_temp.badge_color',
                 'users_temp.fixed_salary_frecuency',
                 'users_temp.manage_salary',
-                'users_temp.use_room',
+                'users_temp.room_id',
                 DB::raw("
                 (
                     SELECT jsonb_build_array(jsonb_object_agg(role, true))
@@ -399,10 +401,8 @@ class SpecialistController extends Controller
             'active' => 'nullable|boolean', // Asegúrate de validar 'active'
             'permissions' => 'nullable|array', // Validación para permisos
             'permissions.*' => 'nullable|in:' . implode(',', $this->allRoles),
-            'use_room' => 'nullable|boolean',
             'registration' => 'nullable|string|max:50',
             'room_id' => 'nullable|integer',
-
         ]);
 
 
@@ -417,7 +417,7 @@ class SpecialistController extends Controller
                 'phone' => $validatedData['phone'] ?? '',
                 'manage_salary' => $validatedData['manage_salary'] ?? false,
                 'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
-                'use_room' => $validatedData['use_room'] ?? false,
+                'room_id' => $validatedData['room_id'] ?? 1,
                 'registration' => $validatedData['registration'] ?? '',
                 'roles' => json_encode(
                     $validatedData['permissions']
@@ -433,7 +433,6 @@ class SpecialistController extends Controller
                 'phone' => $validatedData['phone'] ?? '',
                 'manage_salary' => $validatedData['manage_salary'] ?? false,
                 'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
-                'use_room' => $validatedData['use_room'] ?? false,
                 'room_id' => $validatedData['room_id'] ?? 1,
                 'registration' => $validatedData['registration'] ?? ''
             ]);
@@ -460,7 +459,6 @@ class SpecialistController extends Controller
                 'phone' => $validatedData['phone'] ?? '',
                 'manage_salary' => $validatedData['manage_salary'] ?? false,
                 'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
-                'use_room' => $validatedData['use_room'] ?? false,
                 'room_id' => $validatedData['room_id'] ?? 1,
                 'registration' => $validatedData['registration'] ?? '',
 
