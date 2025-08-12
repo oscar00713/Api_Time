@@ -84,7 +84,6 @@ class SpecialistController extends Controller
                     'users.fixed_salary_frecuency',
                     'users.room_id',
                     DB::raw('NULL::BOOLEAN as manage_salary'),
-                    DB::raw('NULL::BOOLEAN as use_room'),
                     DB::raw('json_agg(roles.*)::json as roles')
                 )
                 ->where('users.active', true) // Solo usuarios activos
@@ -133,7 +132,6 @@ class SpecialistController extends Controller
                 'users.fixed_salary_frecuency',
                 'users.room_id',
                 DB::raw('NULL::BOOLEAN as manage_salary'),
-                DB::raw('NULL::BOOLEAN as use_room'),
                 DB::raw('json_agg(roles.*)::json as roles')
             )
             ->groupBy('users.id');
