@@ -36,7 +36,6 @@ CREATE TABLE users_temp(
    -- payday_type VARCHAR(100),
    -- paydar_number_of_days INTEGER,
     manage_salary BOOLEAN DEFAULT false,
-    use_room BOOLEAN DEFAULT false,
     roles JSONB
 );
 

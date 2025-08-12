@@ -153,7 +153,6 @@ class SpecialistController extends Controller
                 'users_temp.badge_color',
                 'users_temp.fixed_salary_frecuency',
                 'users_temp.manage_salary',
-                'users_temp.room_id',
                 DB::raw("
                 (
                     SELECT jsonb_build_array(jsonb_object_agg(role, true))
@@ -268,6 +267,7 @@ class SpecialistController extends Controller
                 'active' => true,
                 'phone' => $validatedData['phone'] ?? '',
                 'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
+                'room_id' => $validatedData['room_id'] ?? 1,
             ]);
 
             return response()->json(['message' => 'ok'], 201);
@@ -325,7 +325,6 @@ class SpecialistController extends Controller
                             'phone' => $validatedData['phone'] ?? '',
                             'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
                             'manage_salary' => $validatedData['manage_salary'] ?? false,
-                            'use_room' => $validatedData['use_room'] ?? false,
                             'registration' => $validatedData['registration'] ?? '',
                             'roles' =>  json_encode(
                                 $validatedData['permissions']
@@ -417,7 +416,6 @@ class SpecialistController extends Controller
                 'phone' => $validatedData['phone'] ?? '',
                 'manage_salary' => $validatedData['manage_salary'] ?? false,
                 'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
-                'room_id' => $validatedData['room_id'] ?? 1,
                 'registration' => $validatedData['registration'] ?? '',
                 'roles' => json_encode(
                     $validatedData['permissions']
