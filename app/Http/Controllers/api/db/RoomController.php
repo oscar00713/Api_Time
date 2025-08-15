@@ -79,12 +79,6 @@ class RoomController extends Controller
         $dbConnection = $request->get('db_connection');
         $query = DB::connection($dbConnection);
 
-        // Check if the room exists before updating
-        $roomExists = $query->table('rooms')->where('id', $id)->exists();
-        if (!$roomExists) {
-            return response()->json(['error' => 'Room not found'], 404);
-        }
-
         try {
             // Preparar datos de actualización
             $updated = $query->table('rooms')->where('id', $id)->update($validatedData);
