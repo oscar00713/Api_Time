@@ -55,9 +55,9 @@ class AppointmentlastestController extends Controller
                 $query->where('appointments.status', $request->input('status'));
             }
 
-            // Ordenar por updated_at DESC, luego created_at DESC
+            // Ordenar por updated_at DESC y luego por start_date DESC
             $query->orderBy('appointments.updated_at', 'desc')
-                ->orderBy('appointments.created_at', 'desc');
+                ->orderBy('appointments.start_date', 'desc');
 
             // Paginación
             $perPage = $request->input('per_page', 16);
