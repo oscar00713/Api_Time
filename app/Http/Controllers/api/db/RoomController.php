@@ -86,9 +86,8 @@ class RoomController extends Controller
         }
 
         try {
-            $updated = $query->table('rooms')->where('id', $id)->update(array_merge($validatedData, [
-                'updated_at' => now(),
-            ]));
+            // Preparar datos de actualización
+            $updated = $query->table('rooms')->where('id', $id)->update($validatedData);
 
             if (!$updated) {
                 return response()->json(['error' => 'Room not found or no changes made'], 404);
