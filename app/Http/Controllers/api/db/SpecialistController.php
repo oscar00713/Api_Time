@@ -405,34 +405,50 @@ class SpecialistController extends Controller
 
 
 
-        //validar para cambiar en la tabla users_temp
-        if ($validatedData['user_type'] == 'invitation') {
+        // Obtener user_type de forma segura
+        $userType = $validatedData['user_type'] ?? null;
 
-            DB::connection($dbConnection)->table('users_temp')->where('id', $id)->update([
-                'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
-                'badge_color' => $validatedData['badge_color'],
-                'active' => $validatedData['active'],
-                'phone' => $validatedData['phone'] ?? '',
-                'manage_salary' => $validatedData['manage_salary'] ?? false,
-                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
-                'registration' => $validatedData['registration'] ?? '',
-                'roles' => json_encode(
-                    $validatedData['permissions']
-                ) ?? json_encode([])
-            ]);
-        } elseif ($validatedData['user_type'] == 'user') {
+        //validar para cambiar en la tabla users_temp
+        if ($userType === 'invitation') {
+            $updateData = [
+                'fixed_salary' => $validatedData['fixed_salary'] ?? null,
+                'badge_color' => $validatedData['badge_color'] ?? null,
+                'active' => $validatedData['active'] ?? null,
+                'phone' => $validatedData['phone'] ?? null,
+                'manage_salary' => $validatedData['manage_salary'] ?? null,
+                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? null,
+                'registration' => $validatedData['registration'] ?? null,
+                'roles' => isset($validatedData['permissions']) ? json_encode($validatedData['permissions']) : null,
+            ];
+
+            $updateData = array_filter($updateData, function ($v) {
+                return $v !== null;
+            });
+
+            if (!empty($updateData)) {
+                DB::connection($dbConnection)->table('users_temp')->where('id', $id)->update($updateData);
+            }
+        } elseif ($userType === 'user') {
 
             //TODO: no se debe de cambiar el name ni email
-            DB::connection($dbConnection)->table('users')->where('id', $id)->update([
-                'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
-                'badge_color' => $validatedData['badge_color'],
-                'active' => $validatedData['active'],
-                'phone' => $validatedData['phone'] ?? '',
-                'manage_salary' => $validatedData['manage_salary'] ?? false,
-                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
-                'room_id' => $validatedData['room_id'] ?? 1,
-                'registration' => $validatedData['registration'] ?? ''
-            ]);
+            $updateData = [
+                'fixed_salary' => $validatedData['fixed_salary'] ?? null,
+                'badge_color' => $validatedData['badge_color'] ?? null,
+                'active' => $validatedData['active'] ?? null,
+                'phone' => $validatedData['phone'] ?? null,
+                'manage_salary' => $validatedData['manage_salary'] ?? null,
+                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? null,
+                'room_id' => $validatedData['room_id'] ?? null,
+                'registration' => $validatedData['registration'] ?? null,
+            ];
+
+            $updateData = array_filter($updateData, function ($v) {
+                return $v !== null;
+            });
+
+            if (!empty($updateData)) {
+                DB::connection($dbConnection)->table('users')->where('id', $id)->update($updateData);
+            }
             // Procesar permisos
             $rolesFromRequest = $validatedData['permissions'] ?? [];
             $rolesData = [];
@@ -445,23 +461,71 @@ class SpecialistController extends Controller
                 ['user_id' => $id],
                 $rolesData
             );
-        } elseif ($validatedData['user_type'] == 'fake') {
+        } elseif ($userType === 'fake') {
 
             //guardar datos en la tabla userTemp
-            DB::connection($dbConnection)->table('users')->where('id', $id)->update([
-                'name' => $validatedData['name'],
-                'fixed_salary' => $validatedData['fixed_salary'] ?? 0,
-                'badge_color' => $validatedData['badge_color'],
-                'active' => $validatedData['active'],
-                'phone' => $validatedData['phone'] ?? '',
-                'manage_salary' => $validatedData['manage_salary'] ?? false,
-                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? 'monthly',
-                'room_id' => $validatedData['room_id'] ?? 1,
-                'registration' => $validatedData['registration'] ?? '',
+            $updateData = [
+                'name' => $validatedData['name'] ?? null,
+                'fixed_salary' => $validatedData['fixed_salary'] ?? null,
+                'badge_color' => $validatedData['badge_color'] ?? null,
+                'active' => $validatedData['active'] ?? null,
+                'phone' => $validatedData['phone'] ?? null,
+                'manage_salary' => $validatedData['manage_salary'] ?? null,
+                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? null,
+                'room_id' => $validatedData['room_id'] ?? null,
+                'registration' => $validatedData['registration'] ?? null,
+            ];
 
-            ]);
+            $updateData = array_filter($updateData, function ($v) {
+                return $v !== null;
+            });
+
+            if (!empty($updateData)) {
+                DB::connection($dbConnection)->table('users')->where('id', $id)->update($updateData);
+            }
         } else {
-            return response()->json(['error' => 'error'], 409);
+            // Si no se proporcionó user_type, intentamos actualizar en users; si no existe, en users_temp
+            $updateData = [
+                'fixed_salary' => $validatedData['fixed_salary'] ?? null,
+                'badge_color' => $validatedData['badge_color'] ?? null,
+                'active' => $validatedData['active'] ?? null,
+                'phone' => $validatedData['phone'] ?? null,
+                'manage_salary' => $validatedData['manage_salary'] ?? null,
+                'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? null,
+                'room_id' => $validatedData['room_id'] ?? null,
+                'registration' => $validatedData['registration'] ?? null,
+            ];
+
+            $updateData = array_filter($updateData, function ($v) {
+                return $v !== null;
+            });
+
+            $affected = 0;
+            if (!empty($updateData)) {
+                $affected = DB::connection($dbConnection)->table('users')->where('id', $id)->update($updateData);
+            }
+
+            if (!$affected) {
+                // intentar en users_temp
+                $updateTemp = [
+                    'fixed_salary' => $validatedData['fixed_salary'] ?? null,
+                    'badge_color' => $validatedData['badge_color'] ?? null,
+                    'active' => $validatedData['active'] ?? null,
+                    'phone' => $validatedData['phone'] ?? null,
+                    'manage_salary' => $validatedData['manage_salary'] ?? null,
+                    'fixed_salary_frecuency' => $validatedData['fixed_salary_frecuency'] ?? null,
+                    'registration' => $validatedData['registration'] ?? null,
+                    'roles' => isset($validatedData['permissions']) ? json_encode($validatedData['permissions']) : null
+                ];
+
+                $updateTemp = array_filter($updateTemp, function ($v) {
+                    return $v !== null;
+                });
+
+                if (!empty($updateTemp)) {
+                    DB::connection($dbConnection)->table('users_temp')->where('id', $id)->update($updateTemp);
+                }
+            }
         }
         return response()->json(['message' => 'ok'], 201);
     }
