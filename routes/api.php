@@ -84,6 +84,8 @@ Route::middleware('company')->group(function () {
 
     Route::post('/appointmentSuggestions', [AppoimentSuggestionsController::class, 'getSuggestions']);
     Route::post('/blockAppointment', [BlockAppointmentController::class, 'manageBlock']);
+    // Endpoint para asignar room a un usuario (users o users_temp)
+    Route::post('/setroom', [SpecialistController::class, 'setRoom']);
     Route::post('/appointments/day', [AppointmentsdaysController::class, 'getAppointmentsByDay']);
     Route::post('/appointments/day/check', [AppointmentsdaysController::class, 'checkLastUpdate']);
     Route::post('/appointments/week', [AppointmentsweekController::class, 'getAppointmentsByWeek']);

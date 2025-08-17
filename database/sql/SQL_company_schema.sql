@@ -136,7 +136,8 @@ INSERT INTO settings (name, value) VALUES   ('timezone', 'America/Chicago'),
   ('date_limit', 'false'),
   ('date_limit_type', 'specific'),
   ('appointment_price', '0'),
-  ('use_virtual_keyboard ','false'),
+  ('use_virtual_keyboard','false'),
+  ('automatic_mode','false'),
   ('date_limit_value', '2025-05-01');
 
 --crear tabla de company

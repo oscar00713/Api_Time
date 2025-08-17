@@ -176,3 +176,95 @@ POST /chat-sources
 
 -   Todos los métodos usan la conexión dinámica recibida en el parámetro `db_connection`.
 -   Las respuestas de error incluyen el mensaje de excepción si ocurre algún problema en la base de datos.
+
+## Endpoint: POST /setroom
+
+Permite asignar el `room_id` a un usuario que puede estar en `users` o en `users_temp`.
+
+URL: /api/setroom
+
+Headers:
+
+-   Authorization: Bearer <token>
+-   Content-Type: application/json
+
+Body (JSON):
+
+{
+"id_user": 123,
+"user_type": "user", // one of: user, invitation, fake
+"room": 2
+}
+
+Validaciones:
+
+-   `id_user`: entero, requerido
+-   `user_type`: requerido; valores permitidos: `user`, `invitation`, `fake`
+-   `room`: entero, requerido
+
+Comportamiento:
+
+-   Si `user_type` es `invitation`, actualiza la tabla `users_temp`.
+-   Para `user` o `fake`, actualiza la tabla `users`.
+-   Responde 200 OK con { "message": "Room actualizado correctamente" } en éxito.
+-   Responde 404 si no se encuentra el usuario o no se hicieron cambios.
+-   Responde 500 en caso de error del servidor y registra el error en logs.
+
+Ejemplo curl:
+
+```bash
+curl -X POST 'http://localhost:8000/api/setroom' \
+    -H 'Authorization: Bearer <token>' \
+    -H 'Content-Type: application/json' \
+    -H 'db_connection: <tu_conn>' \
+    -d '{"id_user":123, "user_type":"user", "room":2}'
+```
+
+Ejemplo PowerShell:
+
+```powershell
+$body = @{ id_user = 123; user_type = 'user'; room = 2 } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri 'http://localhost:8000/api/setroom' -Body $body -ContentType 'application/json' -Headers @{'Authorization'='Bearer <token>'; 'db_connection' = '<tu_conn>'}
+```
+
+Notas:
+
+-   El endpoint usa la conexión dinámica `db_connection` presente en headers o middleware. Asegúrate de enviarla.
+-   Si quieres que el endpoint intente actualizar en `users` y, si no existe, en `users_temp`, puedo cambiar el comportamiento.
+
+## Automatic mode (automatic_mode)
+
+Breve: cuando `settings`.`automatic_mode` está en `true`, un proceso programado marcará automáticamente como `checkout` (status = 3) los appointments cuya `end_date` ya haya pasado.
+
+Cómo funciona:
+
+-   Se creó un comando Artisan `app:appointments:auto` que recorre todas las compañías, configura la conexión dinámica a la base de datos de cada compañía y, si en `settings` el registro `automatic_mode` está activo, actualiza los appointments con `end_date <= now()` que no estén ya en `checkout` ni `cancelados`.
+
+Cómo ejecutar (cron):
+
+-   En proyectos Laravel 11 ya existe `app/Console/Kernel.php` centralizado; no es necesario crear uno nuevo. Registra el comando en el Kernel existente dentro del método `schedule()` así:
+
+```php
+// app/Console/Kernel.php (Laravel 11)
+protected function schedule(Schedule $schedule): void
+{
+    $schedule->command('app:appointments:auto')->everyMinute()->withoutOverlapping();
+}
+```
+
+-   Luego use system cron para invocar el scheduler de Laravel cada minuto:
+
+```sh
+* * * * * cd /path/to/project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+-   En Windows puede usar el Programador de tareas para ejecutar cada minuto el comando equivalente:
+
+```powershell
+cd C:\path\to\project; php artisan schedule:run
+```
+
+Notas:
+
+-   El comando configura la conexión dinámica para cada compañía usando la tabla `servers` (sqlite) y `companies.db_name`.
+-   Si desea que el proceso haga otras transiciones (por ejemplo marcar `in_room` al inicio), puedo ajustar la lógica.

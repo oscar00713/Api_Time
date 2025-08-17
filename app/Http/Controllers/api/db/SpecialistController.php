@@ -226,6 +226,47 @@ class SpecialistController extends Controller
     }
 
     /**
+     * Establece el room_id para un usuario (users o users_temp) según user_type.
+     * Body: { id_user, user_type, room }
+     */
+    public function setRoom(Request $request)
+    {
+        $validated = $request->validate([
+            'id_user' => 'required|integer',
+            'user_type' => 'required|string|in:user,invitation,fake',
+            'room' => 'required|integer',
+        ]);
+
+        $dbConnection = $request->get('db_connection');
+
+        try {
+            $id = $validated['id_user'];
+            $userType = $validated['user_type'];
+            $room = $validated['room'];
+
+            if ($userType === 'invitation') {
+                $updated = DB::connection($dbConnection)->table('users_temp')->where('id', $id)->update([
+                    'room_id' => $room
+                ]);
+            } else {
+                // 'user' o 'fake' se actualizan en users por defecto
+                $updated = DB::connection($dbConnection)->table('users')->where('id', $id)->update([
+                    'room_id' => $room
+                ]);
+            }
+
+            if (!$updated) {
+                return response()->json(['error' => 'Usuario no encontrado o sin cambios'], 404);
+            }
+
+            return response()->json(['message' => 'Room actualizado correctamente'], 200);
+        } catch (\Exception $e) {
+            Log::error('setRoom error', ['error' => $e->getMessage(), 'payload' => $validated]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)

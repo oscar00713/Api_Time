@@ -14,16 +14,11 @@ class AppointmentlastestController extends Controller
      */
     public function index(Request $request)
     {
-        $validated = $request->validate([
-            'date' => 'required|date',
-        ]);
-
+        // Este endpoint no recibe parámetros: devuelve los últimos turnos de todos los días
         $dbConnection = $request->get('db_connection');
-        $date = Carbon::parse($validated['date'])->startOfDay();
-        $endDate = Carbon::parse($validated['date'])->endOfDay();
-
-        // Mostrar solo turnos desde hace 30 minutos en adelante
-        $from = Carbon::now()->subMinutes(30);
+        // Filtrar por el día actual (desde inicio hasta fin del día)
+        $todayStart = Carbon::now()->startOfDay();
+        $todayEnd = Carbon::now()->endOfDay();
 
         try {
             $query = DB::connection($dbConnection)->table('appointments')
@@ -38,8 +33,8 @@ class AppointmentlastestController extends Controller
                     'users.name as specialist_name',
                     'users.badge_color as specialist_badge_color'
                 ])
-                ->whereBetween('appointments.start_date', [$date, $endDate])
-                ->where('appointments.start_date', '>=', $from);
+                // Traer solo turnos cuyo start_date esté dentro del día actual
+                ->whereBetween('appointments.start_date', [$todayStart, $todayEnd]);
 
             // Filtros manuales
             if ($request->filled('service_id')) {
@@ -55,9 +50,8 @@ class AppointmentlastestController extends Controller
                 $query->where('appointments.status', $request->input('status'));
             }
 
-            // Ordenar por updated_at DESC y luego por start_date DESC
-            $query->orderBy('appointments.updated_at', 'desc')
-                ->orderBy('appointments.start_date', 'desc');
+            // Ordenar por start_date DESC (el turno con start_date más reciente primero)
+            $query->orderBy('appointments.start_date', 'desc');
 
             // Paginación
             $perPage = $request->input('per_page', 16);

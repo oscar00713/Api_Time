@@ -11,7 +11,7 @@ class ByClientController extends Controller
     public function index(Request $request, $client_id)
     {
         $dbConnection = $request->get('db_connection');
-        $perPage = $request->input('per_page', 10);
+        $perPage = $request->input('per_page', 16);
         $page = $request->input('page', 1);
         $search = $request->input('search');
         $sort = $request->input('sort', 'start_date');
@@ -23,12 +23,17 @@ class ByClientController extends Controller
         }
 
         $query = DB::connection($dbConnection)->table('appointments')
+            ->join('clients', 'appointments.client_id', '=', 'clients.id')
             ->join('services', 'appointments.service_id', '=', 'services.id')
             ->join('users', 'appointments.employee_id', '=', 'users.id')
             ->select([
                 'appointments.*',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'clients.banned as client_banned',
                 'services.name as service_name',
-                'users.name as specialist_name'
+                'users.name as specialist_name',
+                'users.badge_color as specialist_badge_color'
             ])
             ->where('appointments.client_id', $client_id);
 
