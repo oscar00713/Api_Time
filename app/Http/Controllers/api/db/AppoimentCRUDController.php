@@ -101,6 +101,7 @@ class AppoimentCRUDController extends Controller
                 // Verificar si el especialista está disponible
                 $existingAppointment = $query->table('appointments')
                     ->where('employee_id', $appointment['selectedEmployee'])
+                    ->where('status', '!=', 4)
                     ->where(function ($q) use ($appointment) {
                         // Add 3-minute tolerance for consecutive appointments
                         $startWithTolerance = Carbon::parse($appointment['start'])->addMinutes(3);
@@ -274,6 +275,7 @@ class AppoimentCRUDController extends Controller
                 $existingAppointment = $query->table('appointments')
                     ->where('id', '!=', $appointment->id) // Usar appointment->id en lugar de $id
                     ->where('employee_id', $employeeId)
+                    ->where('status', '!=', 4)
                     ->where(function ($q) use ($startDate, $endDate) {
                         // Add 3-minute tolerance for consecutive appointments
                         $startWithTolerance = Carbon::parse($startDate)->addMinutes(3);

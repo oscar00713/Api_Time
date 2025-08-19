@@ -222,10 +222,16 @@ class AppoimentSuggestionsController extends Controller
             // Modificar esta línea para pasar los empleados en vacaciones
             $timeSlots = $this->generateTimeSlots($query, $employees, $totalDuration, $validated, $vacationEmployeeIds);
 
+            // Preparar array de employee badge colors
+            $employeeBadgeColors = $employees->map(function ($e) {
+                return ['id' => $e->id, 'badge_color' => $e->badge_color];
+            })->values()->toArray();
+
             return response()->json([
                 'suggestions' => array_values($timeSlots),
                 'time_label' => $validated['dayAndTime'],
                 'blockoff_employee_ids' => $vacationEmployeeIds,
+                'employee_ids_badge_colors' => $employeeBadgeColors,
             ]);
         } catch (\Exception $e) {
             return response()->json([
