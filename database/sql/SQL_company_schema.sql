@@ -361,6 +361,7 @@ CREATE TABLE appointments (
     status INTEGER DEFAULT 0,--"pending" =0, "checked_in"=1, "in_room"=2, "checked_out"=3, "cancelled"=4
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
+    date_in_room TIMESTAMP NOT NULL,
     forced BOOLEAN DEFAULT false,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id),
@@ -385,113 +386,6 @@ CREATE TABLE calls (
 
 
 
--- CREATE OR REPLACE FUNCTION create_partition_and_insert()
--- RETURNS TRIGGER AS $$
--- DECLARE
---     partition_name TEXT;
---     start_date TIMESTAMP;
---     end_date TIMESTAMP;
--- BEGIN
---     partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
---     start_date := DATE_TRUNC('month', NEW.start_date);
---     end_date := start_date + INTERVAL '1 month';
---     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = partition_name) THEN
---         EXECUTE format('
---             CREATE TABLE %I PARTITION OF appointments
---             FOR VALUES FROM (%L) TO (%L)',
---             partition_name, start_date, end_date);
---         EXECUTE format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)', partition_name, partition_name);
---         EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
---         EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
---     END IF;
---     EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
---     RETURN NULL;
--- END;
--- $$ LANGUAGE plpgsql;
-
--- CREATE OR REPLACE FUNCTION create_partition_and_insert()
--- RETURNS TRIGGER AS $$
--- DECLARE
---     partition_name TEXT;
---     start_date TIMESTAMP;
---     end_date TIMESTAMP;
--- BEGIN
---     partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
---     start_date := DATE_TRUNC('month', NEW.start_date);
---     end_date := start_date + INTERVAL '1 month';
-
---     -- Cambiamos la forma de verificar si la tabla existe
---     IF NOT EXISTS (
---         SELECT 1
---         FROM pg_catalog.pg_class c
---         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
---         WHERE c.relname = partition_name
---         AND n.nspname = current_schema()
---     ) THEN
---         EXECUTE format('
---             CREATE TABLE %I PARTITION OF appointments
---             FOR VALUES FROM (%L) TO (%L)',
---             partition_name, start_date, end_date);
---         EXECUTE format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)', partition_name, partition_name);
---         EXECUTE format('CREATE INDEX idx_client_id_%I ON %I(client_id)', partition_name, partition_name);
---         EXECUTE format('CREATE INDEX idx_service_id_%I ON %I(service_id)', partition_name, partition_name);
---     END IF;
-
---     EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
---     RETURN NULL;
--- END;
--- $$ LANGUAGE plpgsql;
-
--- CREATE OR REPLACE FUNCTION create_partition_and_insert()
--- RETURNS TRIGGER AS $$
--- DECLARE
---     partition_name TEXT;
---     start_date TIMESTAMP;
---     end_date TIMESTAMP;
---     dblink_conn TEXT;
--- BEGIN
---     partition_name := 'z_appo_' || TO_CHAR(NEW.start_date, 'YYYY_MM');
---     start_date := DATE_TRUNC('month', NEW.start_date);
---     end_date := start_date + INTERVAL '1 month';
-
---     -- Solo si la partición no existe, la creamos mediante dblink
---     IF NOT EXISTS (
---         SELECT 1
---         FROM pg_catalog.pg_class c
---         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
---         WHERE c.relname = partition_name
---           AND n.nspname = current_schema()
---     ) THEN
---         -- Preparamos la cadena de conexión. Usamos current_database() y current_user para reutilizar la conexión actual
---         dblink_conn := 'dbname=' || current_database() || ' user=' || current_user;
-
---         PERFORM dblink_exec(
---             dblink_conn,
---             format('CREATE TABLE %I PARTITION OF appointments FOR VALUES FROM (%L) TO (%L)',
---                    partition_name, start_date, end_date)
---         );
---         PERFORM dblink_exec(
---             dblink_conn,
---             format('CREATE INDEX idx_employee_id_%I ON %I(employee_id)',
---                    partition_name, partition_name)
---         );
---         PERFORM dblink_exec(
---             dblink_conn,
---             format('CREATE INDEX idx_client_id_%I ON %I(client_id)',
---                    partition_name, partition_name)
---         );
---         PERFORM dblink_exec(
---             dblink_conn,
---             format('CREATE INDEX idx_service_id_%I ON %I(service_id)',
---                    partition_name, partition_name)
---         );
---     END IF;
-
---     -- Realiza la inserción en la partición correspondiente
---     EXECUTE format('INSERT INTO %I VALUES ($1.*)', partition_name) USING NEW;
---     RETURN NULL;
--- END;
--- $$ LANGUAGE plpgsql;
 
 --
 -- Tabla de fuentes de chat
@@ -515,3 +409,51 @@ CREATE TABLE chat_log (
     CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     CONSTRAINT fk_specialist FOREIGN KEY (specialist_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+
+CREATE TABLE history_categories (
+id SERIAL PRIMARY KEY,
+name VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE history (
+id SERIAL PRIMARY KEY,
+type VARCHAR(20) NOT NULL, -- Ejemplo de valores: "S", "O", "A", "P", "SIMPLE", "FILE"
+title VARCHAR(255) NOT NULL,
+description TEXT,
+created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+user_id INTEGER NOT NULL,
+CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE custom_fields_definitions (
+    id SERIAL PRIMARY KEY,
+    in_appointments BOOLEAN DEFAULT FALSE,
+    in_client BOOLEAN DEFAULT FALSE,
+    field_name VARCHAR(100) NOT NULL,
+    field_type VARCHAR(50) NOT NULL, -- ej.: text, number, select
+    options TEXT, -- para selects: 'grasa, seca, mixta'
+    required_for_appointment BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX idx_cf_definitions_id_in_appointments ON custom_fields_definitions(id, in_appointments, in_client);
+
+CREATE TABLE custom_fields_in_history (
+history_category_id INT NOT NULL REFERENCES history_categories(id) ON DELETE CASCADE,
+custom_field_definition_id INT NOT NULL REFERENCES custom_fields_definitions(id) ON DELETE CASCADE,
+required_for_history BOOLEAN DEFAULT FALSE,
+PRIMARY KEY (history_category_id, custom_field_definition_id)
+);
+
+CREATE TABLE custom_fields_values (
+    id SERIAL PRIMARY KEY,
+    history_id INT REFERENCES history(id) ON DELETE CASCADE,
+    appointment_id BIGINT, -- sin FK porque appointments es particionada
+    client_id INT REFERENCES clients(id) ON DELETE CASCADE,
+    field_id INT REFERENCES custom_fields_definitions(id) ON DELETE CASCADE,
+    field_value TEXT
+);
+
+-- Índice para acelerar búsquedas por appointment_id y field_id
+CREATE INDEX IF NOT EXISTS idx_cf_values_appointment_field ON custom_fields_values(appointment_id, field_id);

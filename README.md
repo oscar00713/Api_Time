@@ -177,6 +177,47 @@ POST /chat-sources
 -   Todos los métodos usan la conexión dinámica recibida en el parámetro `db_connection`.
 -   Las respuestas de error incluyen el mensaje de excepción si ocurre algún problema en la base de datos.
 
+## History
+
+El `HistoryController` gestiona el historial de la aplicación (tabla `history`). Permite operaciones CRUD sobre registros históricos.
+
+### Endpoints y funcionalidades
+
+-   **GET /history**
+    -   Lista todos los registros de historial.
+    -   Parámetro `db_connection` obligatorio (en header o body).
+    -   Respuesta: 200 OK con array de objetos históricos.
+-   **POST /history**
+    -   Crea un nuevo registro histórico.
+    -   Body (JSON):
+        ```json
+        {
+            "type": "S",             // S, O, A, P, SIMPLE, FILE
+            "title": "Título",
+            "description": "Descripción opcional",
+            "created_by": 5,           // ID de usuario que crea
+            "file": <archivo opcional si type="FILE">
+        }
+        ```
+    -   Respuesta: 201 Created con el objeto creado.
+-   **GET /history/{id}**
+    -   Obtiene un registro histórico por su ID.
+    -   Respuesta: 200 OK con el objeto o 404 Not Found.
+-   **PUT /history/{id}**
+    -   Actualiza campos de un registro histórico existente.
+    -   Body: cualquiera de los campos `type`, `title`, `description`, `created_by`, o `file` (cuando `type` = FILE).
+    -   Respuesta: 200 OK con el objeto actualizado o 404 Not Found.
+-   **DELETE /history/{id}**
+    -   Elimina un registro histórico por ID. Si tiene `type = FILE`, borra también el archivo asociado.
+    -   Respuesta: 200 OK con mensaje de éxito o 404 Not Found.
+
+### Ejemplo curl
+
+```bash
+curl -X GET "http://localhost:8000/api/history?db_connection=company_db" \
+    -H "Authorization: Bearer <token>"
+```
+
 ## Endpoint: POST /setroom
 
 Permite asignar el `room_id` a un usuario que puede estar en `users` o en `users_temp`.
@@ -268,3 +309,77 @@ Notas:
 
 -   El comando configura la conexión dinámica para cada compañía usando la tabla `servers` (sqlite) y `companies.db_name`.
 -   Si desea que el proceso haga otras transiciones (por ejemplo marcar `in_room` al inicio), puedo ajustar la lógica.
+
+## AppointmentStatusController
+
+Este controlador permite cambiar el estado de una cita de **checked_in** a **in_room**, actualizando el campo `date_in_room`.
+
+### Endpoint: POST /changeStatus
+
+-   URL: `/api/changeStatus`
+-   Headers:
+    -   `Authorization: Bearer <token>`
+    -   `Content-Type: application/json`
+-   Body:
+
+-   Responses:
+    -   200 OK:
+        ```json
+        {
+            "message": "Estado actualizado a in_room",
+            "appointment": {
+                /* datos de la cita actualizada */
+            }
+        }
+        ```
+    -   400 Bad Request: falta `db_connection`
+    -   404 Not Found: cita no encontrada
+    -   422 Unprocessable Entity: cita no está en estado `checked_in`
+    -   500 Internal Error: error al actualizar
+
+````markdown
+# Uso
+
+```bash
+curl -X POST https://tu-dominio/api/changeStatus \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"db_connection":"company_db","appointment_id":45}'
+```
+
+# Notas
+
+-   Se requiere la conexión dinámica a la base de datos en `db_connection`.
+
+## Historial Personalizado
+
+Este módulo permite definir campos adicionales para el historial de clientes y citas, asociarlos a categorías y almacenar sus valores.
+
+### Definiciones de Campos
+
+-   **GET /historial/fields-definitions**: Listar todas las definiciones.
+-   **POST /historial/fields-definitions**: Crear nueva definición.
+    -   Body: `in_appointments` (boolean), `in_client` (boolean), `field_name`, `field_type`, `options?`, `required_for_appointment?`.
+-   **GET /historial/fields-definitions/{id}**: Ver definición.
+-   **PUT /historial/fields-definitions/{id}**: Actualizar definición.
+-   **DELETE /historial/fields-definitions/{id}**: Eliminar definición.
+
+### Asociaciones en Historial
+
+-   **GET /historial/fields-in-history**: Listar asociaciones.
+-   **POST /historial/fields-in-history**: Asociar campo a categoría.
+    -   Body: `history_category_id`, `custom_field_definition_id`, `required_for_history?`.
+-   **DELETE /historial/fields-in-history/{historyCategoryId}/{fieldDefId}**: Desasociar.
+
+### Valores de Campos
+
+-   **GET /historial/fields-values**: Listar todos los valores.
+-   **POST /historial/fields-values**: Crear valor.
+    -   Body: `history_id?`, `appointment_id?`, `client_id?`, `field_id`, `field_value`.
+-   **GET /historial/fields-values/{id}**: Ver valor.
+-   **PUT /historial/fields-values/{id}**: Actualizar valor.
+    -   Body: `field_value`.
+-   **DELETE /historial/fields-values/{id}**: Eliminar valor.
+
+### Uso de la Conexión Dinámica
+````

@@ -85,6 +85,7 @@ class AppointmentsdaysController extends Controller
                 'per_page' => $perPage,
                 'total' => $total,
                 'last_page' => ceil($total / $perPage),
+                'server_time' => Carbon::now()->toDateTimeString(),
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
@@ -119,7 +120,8 @@ class AppointmentsdaysController extends Controller
 
             return response()->json([
                 'last_updated_at' => $lastUpdated,
-                'calling' => $calling
+                'calling' => $calling,
+                'server_time' => Carbon::now()->toDateTimeString(),
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);

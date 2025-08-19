@@ -15,14 +15,20 @@ class HistoryController extends Controller
     public function index(Request $request)
     {
         $dbConnection = $request->get('db_connection');
+        if (!$dbConnection) {
+            return response()->json(['error' => 'No se especificó la conexión a la base de datos'], 400);
+        }
         $history = DB::connection($dbConnection)->table('history')->orderByDesc('created_at')->get();
-        return response()->json($history);
+        return response()->json($history, 200);
     }
 
     // Crear un nuevo registro
     public function store(Request $request)
     {
         $dbConnection = $request->get('db_connection');
+        if (!$dbConnection) {
+            return response()->json(['error' => 'No se especificó la conexión a la base de datos'], 400);
+        }
         $validated = $request->validate([
             'type' => 'required|string|max:20',
             'title' => 'required|string|max:255',
@@ -40,10 +46,10 @@ class HistoryController extends Controller
         ];
 
         // Si es tipo FILE y viene archivo, guardar y poner la ruta en description
-        if ($validated['type'] === 'FILE' && $request->hasFile('file')) {
+        if (($validated['type'] ?? '') === 'FILE' && $request->hasFile('file')) {
             $userId = $validated['created_by'];
             $path = $request->file('file')->store("history_files/{$userId}", 'public');
-            $data['description'] = Storage::disk('public')->url($path);
+            $data['description'] = Storage::url($path);
         }
 
         $id = DB::connection($dbConnection)->table('history')->insertGetId($data);
@@ -56,6 +62,9 @@ class HistoryController extends Controller
     public function show(Request $request, $id)
     {
         $dbConnection = $request->get('db_connection');
+        if (!$dbConnection) {
+            return response()->json(['error' => 'No se especificó la conexión a la base de datos'], 400);
+        }
         $history = DB::connection($dbConnection)->table('history')->where('id', $id)->first();
         if (!$history) {
             return response()->json(['error' => 'Registro no encontrado'], 404);
@@ -67,6 +76,9 @@ class HistoryController extends Controller
     public function update(Request $request, $id)
     {
         $dbConnection = $request->get('db_connection');
+        if (!$dbConnection) {
+            return response()->json(['error' => 'No se especificó la conexión a la base de datos'], 400);
+        }
         $history = DB::connection($dbConnection)->table('history')->where('id', $id)->first();
         if (!$history) {
             return response()->json(['error' => 'Registro no encontrado'], 404);
@@ -88,9 +100,9 @@ class HistoryController extends Controller
 
         // Si es tipo FILE y viene archivo, guardar y poner la ruta en description
         $userId = $validated['created_by'] ?? $history->created_by;
-        if (($validated['type'] ?? $history->type) === 'FILE' && $request->hasFile('file')) {
+        if ((($validated['type'] ?? $history->type) === 'FILE') && $request->hasFile('file')) {
             $path = $request->file('file')->store("history_files/{$userId}", 'public');
-            $data['description'] = Storage::disk('public')->url($path);
+            $data['description'] = Storage::url($path);
         }
 
         DB::connection($dbConnection)->table('history')->where('id', $id)->update($data);
@@ -103,6 +115,9 @@ class HistoryController extends Controller
     public function destroy(Request $request, $id)
     {
         $dbConnection = $request->get('db_connection');
+        if (!$dbConnection) {
+            return response()->json(['error' => 'No se especificó la conexión a la base de datos'], 400);
+        }
         $history = DB::connection($dbConnection)->table('history')->where('id', $id)->first();
         if (!$history) {
             return response()->json(['error' => 'Registro no encontrado'], 404);
@@ -110,8 +125,10 @@ class HistoryController extends Controller
 
         // Si es tipo FILE, eliminar el archivo del storage si existe
         if ($history->type === 'FILE' && $history->description) {
-            $filePath = str_replace(Storage::disk('public')->url('/'), '', $history->description);
-            Storage::disk('public')->delete($filePath);
+            // Eliminar archivo asociado a la URL almacenada
+            $urlPath = parse_url($history->description, PHP_URL_PATH);
+            $relative = preg_replace('#^/storage/#', '', $urlPath);
+            Storage::delete($relative);
         }
 
         DB::connection($dbConnection)->table('history')->where('id', $id)->delete();

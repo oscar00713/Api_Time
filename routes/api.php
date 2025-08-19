@@ -30,6 +30,7 @@ use App\Http\Controllers\api\db\chat\ChatSourceController;
 use App\Http\Controllers\api\appointments\SearchController;
 use App\Http\Controllers\api\db\BlockAppointmentController;
 use App\Http\Controllers\api\client\ClientSummaryController;
+use App\Http\Controllers\api\db\AppointmentStatusController;
 use App\Http\Controllers\api\appointments\ByClientController;
 use App\Http\Controllers\api\service\ServiceSpecialController;
 use App\Http\Controllers\api\db\AppoimentSuggestionsController;
@@ -37,8 +38,11 @@ use App\Http\Controllers\api\user_option\UserOptionsController;
 use App\Http\Controllers\api\invitacion\UserInvitationController;
 use App\Http\Controllers\api\appointments\AppointmentsdaysController;
 use App\Http\Controllers\api\appointments\AppointmentsweekController;
+use App\Http\Controllers\api\db\historial\CustomFieldValueController;
 use App\Http\Controllers\api\appointments\AppointmentsmonthController;
 use App\Http\Controllers\api\appointments\AppointmentlastestController;
+use App\Http\Controllers\api\db\historial\CustomFieldInHistoryController;
+use App\Http\Controllers\api\db\historial\CustomFieldDefinitionController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -78,6 +82,13 @@ Route::middleware('company')->group(function () {
         'rooms' => RoomController::class,
         'chat' => ChatController::class,
         'chat/sources' => ChatSourceController::class,
+        //TODO todo los metodos de historial
+        'historial/fields-definitions' =>
+        CustomFieldDefinitionController::class,
+        'historial/fields-in-history' =>
+        CustomFieldInHistoryController::class,
+        'historial/fields-values' =>
+        CustomFieldValueController::class
     ]);
 
     Route::get('/statusCompany',  [UserController::class, 'statusCompany']);
@@ -92,6 +103,9 @@ Route::middleware('company')->group(function () {
     Route::post('/appointments/month', [AppointmentsmonthController::class, 'getAppointmentsByMonth']);
     Route::post('/appointments/latest', [AppointmentlastestController::class, 'index']);
     Route::get('/appointments/byClient/{client_id}', [ByClientController::class, 'index']);
+    //TODO Cambiar estado de cita de checked_in a in_room
+    Route::post('/changeStatus', [AppointmentStatusController::class, 'changeStatus']);
+
     Route::get('/clients/summary/{client_id}', [ClientSummaryController::class, 'show']);
 
     Route::get('/openDays', [ServiceSpecialController::class, 'openDays']);
