@@ -362,11 +362,13 @@ CREATE TABLE appointments (
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
     date_in_room TIMESTAMP NOT NULL,
+    room_id INTEGER DEFAULT NULL, -- room_id puede ser NULL si no se asigna una sala
     forced BOOLEAN DEFAULT false,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_client FOREIGN KEY (client_id) REFERENCES clients(id),
     CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
     CONSTRAINT fk_users FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rooms FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
     PRIMARY KEY (id, appointment_date),
     CONSTRAINT unique_appointment UNIQUE (appointment_date, start_date, client_id, service_id, employee_id)
 ) PARTITION BY RANGE (appointment_date);
