@@ -381,5 +381,14 @@ Este módulo permite definir campos adicionales para el historial de clientes y 
     -   Body: `field_value`.
 -   **DELETE /historial/fields-values/{id}**: Eliminar valor.
 
+### Categorías de Historial
+
+-   **GET /historial/history-categories**: Listar todas las categorías.
+-   **POST /historial/history-categories**: Crear nueva categoría.
+    -   Body: `name` (string, requerido, único)
+-   **GET /historial/history-categories/{id}**: Ver categoría.
+-   **PUT /historial/history-categories/{id}**: Actualizar nombre.
+-   **DELETE /historial/history-categories/{id}**: Eliminar categoría.
+
 ### Uso de la Conexión Dinámica
 ````

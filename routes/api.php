@@ -36,6 +36,7 @@ use App\Http\Controllers\api\service\ServiceSpecialController;
 use App\Http\Controllers\api\db\AppoimentSuggestionsController;
 use App\Http\Controllers\api\user_option\UserOptionsController;
 use App\Http\Controllers\api\invitacion\UserInvitationController;
+use App\Http\Controllers\api\db\historial\HistoryCategoryController;
 use App\Http\Controllers\api\appointments\AppointmentsdaysController;
 use App\Http\Controllers\api\appointments\AppointmentsweekController;
 use App\Http\Controllers\api\db\historial\CustomFieldValueController;
@@ -83,8 +84,10 @@ Route::middleware('company')->group(function () {
         'chat' => ChatController::class,
         'chat/sources' => ChatSourceController::class,
         //TODO todo los metodos de historial
-        'historial/fields-definitions' =>
-        CustomFieldDefinitionController::class,
+        // Categorías de Historial (history_categories)
+        'historial/history-categories' => HistoryCategoryController::class,
+        // Definiciones de Campos Personalizados
+        'historial/fields-definitions' => CustomFieldDefinitionController::class,
         'historial/fields-in-history' =>
         CustomFieldInHistoryController::class,
         'historial/fields-values' =>

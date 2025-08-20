@@ -433,6 +433,7 @@ CREATE TABLE custom_fields_definitions (
     id SERIAL PRIMARY KEY,
     in_appointments BOOLEAN DEFAULT FALSE,
     in_client BOOLEAN DEFAULT FALSE,
+    in_history BOOLEAN DEFAULT FALSE,
     field_name VARCHAR(100) NOT NULL,
     field_type VARCHAR(50) NOT NULL, -- ej.: text, number, select
     options TEXT, -- para selects: 'grasa, seca, mixta'
@@ -453,6 +454,7 @@ CREATE TABLE custom_fields_values (
     history_id INT REFERENCES history(id) ON DELETE CASCADE,
     appointment_id BIGINT, -- sin FK porque appointments es particionada
     client_id INT REFERENCES clients(id) ON DELETE CASCADE,
+    history_id INT REFERENCES history(id) ON DELETE CASCADE,
     field_id INT REFERENCES custom_fields_definitions(id) ON DELETE CASCADE,
     field_value TEXT
 );
