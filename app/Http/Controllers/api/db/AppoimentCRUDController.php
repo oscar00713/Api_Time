@@ -61,6 +61,8 @@ class AppoimentCRUDController extends Controller
             'appointments.*.end' => 'required|date|after:appointments.*.start',
             'appointments.*.selectedEmployee' => 'required|integer',
             'appointments.*.service_id' => 'required|integer',
+            'appointments.*.forced' => 'nullable|boolean',
+            'appointments.*.room_id' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
@@ -147,6 +149,10 @@ class AppoimentCRUDController extends Controller
                     }
                 }
 
+                // Handle forced and room assignment
+                $forced = $appointment['forced'] ?? false;
+                $roomId = $appointment['room_id'] ?? null;
+
                 $appointmentData = [
                     'client_id' => $request->client_id,
                     'service_id' => $appointment['service_id'],
@@ -163,6 +169,8 @@ class AppoimentCRUDController extends Controller
                     'appointment_price' => $request->appointment_price,
                     'paid' => $request->appointment_paid,
                     'paid_date' => $request->appointment_paid ? Carbon::now() : null,
+                    'room_id' => $roomId,
+                    'forced' => $forced,
                     // 'appointment_paid_invoice_id' => $request->appointment_paid_invoice_id,
                 ];
                 $year = date('Y', strtotime($appointment['start']));
@@ -218,6 +226,8 @@ class AppoimentCRUDController extends Controller
             'status' => 'sometimes|integer',
             'appointment_price' => 'sometimes|numeric',
             'paid' => 'sometimes|boolean',
+            'forced' => 'sometimes|boolean',
+            'room_id' => 'sometimes|integer',
         ]);
 
         if ($validator->fails()) {
@@ -252,7 +262,10 @@ class AppoimentCRUDController extends Controller
                 return response()->json(['error' => 'Cita no encontrada'], 404);
             }
 
-            // Verificar disponibilidad si se cambia la fecha o el especialista
+            // Handle forced and room assignment
+            $forced = $request->has('forced') ? $request->input('forced') : $appointment->forced;
+            // Only accept room_id from request, keep existing if not provided
+            $roomId = $request->has('room_id') ? $request->input('room_id') : $appointment->room_id;
             if ($request->has('start_date') || $request->has('end_date') || $request->has('employee_id')) {
                 $startDate = $request->input('start_date');
                 $endDate = $request->input('end_date');
@@ -302,7 +315,9 @@ class AppoimentCRUDController extends Controller
                     'end_date',
                     'status',
                     'appointment_price',
-                    'paid'
+                    'paid',
+                    'forced',
+                    'room_id'
                 ]);
             }, ARRAY_FILTER_USE_KEY);
 
@@ -352,13 +367,16 @@ class AppoimentCRUDController extends Controller
                 $updateData['user_comission_total'] = $commissionTotal;
             }
 
-            // En el método update, cuando creas un nuevo registro
+            // In update method, when recreating a record with new start_date
             if ($request->has('start_date')) {
                 $startDate = $request->input('start_date');
                 // Create new appointment with updated data
                 $newAppointmentData = array_merge((array)$appointment, $updateData);
                 $newAppointmentData['start_date'] = $startDate;
                 $newAppointmentData['appointment_date'] = date('Y-m-d', strtotime($startDate));
+                // Include forced and room_id in new appointment
+                $newAppointmentData['forced'] = $forced;
+                $newAppointmentData['room_id'] = $roomId;
 
                 // Asegurarse de que no se duplique el ID al insertar
                 unset($newAppointmentData['id']);
@@ -374,7 +392,9 @@ class AppoimentCRUDController extends Controller
                     'new_start_date' => $startDate
                 ]);
             } else {
-                // Just update the existing appointment
+                // Just update the existing appointment, include forced and room_id
+                $updateData['forced'] = $forced;
+                $updateData['room_id'] = $roomId;
                 $query->table('appointments')->where('id', $appointment->id)->update($updateData);
 
                 return response()->json(['message' => 'Cita actualizada exitosamente']);
